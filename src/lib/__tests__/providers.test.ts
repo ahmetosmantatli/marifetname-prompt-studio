@@ -52,6 +52,16 @@ describe('prompt', () => {
     expect(p).toContain('Yay, bu hafta...');
   });
 
+  it('İngilizce veya uzun Dialogue satırını Türkçe hook ile değiştirir', () => {
+    const p = enforceHiggsfieldPrompt(
+      'Vertical 9:16, 12-second shot. Dialogue: "I want you to trust the rhythm of your heart and let your words guide your path."',
+      'İkizler, bugün kelimelerle kendi yolunu çiziyorsun.',
+      12
+    );
+    expect(p).not.toContain('I want you');
+    expect(p).toContain('Dialogue (Turkish, lip-synced): "İkizler, bugün kelimelerle kendi yolunu çiziyorsun."');
+  });
+
   it('demo çıktısı kalite kontrolünden geçer', () => {
     const astro = buildAstroContext('hafta', new Date('2026-11-25T10:00:00Z'));
     const chunks = retrieveChunks(input, astro, 6);

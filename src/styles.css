@@ -394,6 +394,13 @@ select:focus, input:focus, textarea:focus { border-color: rgba(201,164,92,.55) !
 .prompt-block.light pre { color: var(--ink-soft); font-size: 10px; max-height: 220px; }
 .prompt-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .prompt-two-col .prompt-block { margin-bottom: 12px; }
+
+.usage-callout { border: 1px solid var(--line); background: rgba(201,164,92,.055); padding: 11px 13px; margin-bottom: 12px; }
+.usage-callout strong { display: block; font-size: 10px; color: var(--gold-2); letter-spacing: .02em; }
+.usage-callout p { margin: 4px 0 0; font-size: 9.5px; line-height: 1.6; color: var(--muted); }
+.usage-callout code { font-family: var(--font-mono); color: var(--ink-soft); font-size: 9px; }
+.usage-callout b { color: var(--ink-soft); font-weight: 600; }
+
 .mini-note { border-left: 2px solid var(--gold); background: rgba(201,164,92,.045); padding: 10px 12px; font-size: 9.5px; line-height: 1.65; color: var(--muted); }
 .mini-note strong { color: var(--gold-2); font-weight: 600; }
 .hook-card { border: 1px solid var(--line); background: linear-gradient(135deg, rgba(201,164,92,.13), rgba(201,164,92,.025)); padding: 16px 18px; margin-bottom: 14px; }

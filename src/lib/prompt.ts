@@ -8,11 +8,14 @@ Görevin: seçilen burcun karakteriyle kameraya doğrudan konuşan, seçilen zam
 
 SENARYO KURALLARI
 - Karakter Türkçe konuşur, birinci tekil şahıs kullanır ve izleyiciye "sen" diye hitap eder.
-- 8-12 kısa replik yaz. Her replik 1-2 cümle, okununca 3-6 saniye olsun.
-- İlk cümle 3 saniyede yakalayan bir hook olsun. Hook'ta burcun adını söyle.
+- "script" alanı TAM SESLENDİRME METNİDİR: 8-12 kısa replik yaz. Her replik 1-2 cümle olsun; bu metin 30-45 saniyelik voiceover içindir.
+- "higgsfieldPrompt" içindeki Dialogue satırı ise 8/10/12 saniyelik videoya sığacak KISA repliktir: en fazla 25-30 kelime. Tam script'i Dialogue alanına kopyalama.
+- İlk cümle 3 saniyede yakalayan bir hook olsun. Hook'ta burcun adını söyle ve somut bir gerilim kur; "bir yansıma", "yeni bir ışık" gibi genel cümlelerden kaçın.
+- Repliklerde parantez içi sahne yönetimi, telaffuz notu veya "(farklı sesler, aynı nefes)" gibi ifadeler kullanma. Parantezleri yalnızca voiceDirection alanında kullan; script sadece söylenecek kelimelerden oluşsun.
 - Burcun gölgesini ve arzusunu somut bir insan sahnesiyle anlat; genel geçer burç cümleleri kurma.
 - Günün/ayın bağlamını (Ay burcu, gezegen günü, mevsim) doğal biçimde metne dokundur; ansiklopedik bilgi verme.
 - ZAMAN BAĞLAMI: Seçilen burç ile Ay burcunu asla karıştırma. Ay burcu ayrı bir gökcismi bağlamıdır; metinde Ay'dan söz edeceksen yalnızca verilen gerçek Ay burcunu söyle. Günün gezegeni ve gezegen saatini aynen kullan; olmayan bir gezegen saatini uydurma.
+- Türkçe ek uyumuna dikkat et: "Ay İkizler'da" değil "Ay İkizler burcunda" gibi doğal bir ifade kullan.
 - TAMAMLIK: JSON'daki hiçbir alanı boş bırakma. script 8-12 replik, higgsfieldPrompt 120-180 kelime, caption ve sourceNotes dolu olsun.
 - İslami çerçeve: tevekkül, niyet, sabır, şükür, kalbi temiz tutma gibi kavramları doğal kullan. Her replikte dini ifade kullanma; 1-2 yerde yeterli.
 - Kuran ayeti veya hadis uydurma. Verilen kaynaklarda geçmeyen dini bir metni alıntılama. Dinî hüküm/fetva verme.
@@ -96,7 +99,7 @@ Mevsim: ${astro.season}
 Ay'ın o burçtaki iş takvimi: ${astro.primaryMoonSign.moonElection}
 
 ZAMAN BAĞLAMI DOĞRULUK KURALLARI
-- Metinde "Ay ${sign.name}'da" DEME. Doğru ifade: "Ay ${astro.primaryMoonSign.name}'da".
+- Metinde "Ay ${sign.name} burcunda" DEME (yanlış: seçilen burç). Doğru ifade: "Ay ${astro.primaryMoonSign.name} burcunda".
 - Seçilen burç ${sign.name}; Ay burcu ${astro.primaryMoonSign.name}. Bu ikisi farklı şeylerdir.
 - Günün gezegeni ${astro.planetaryDay}; gezegen saati ${astro.planetaryHour}. Bunların dışında bir gezegen saatinden söz etme.
 - Ay evresini ve mevsimi yalnızca yukarıdaki gibi kullan.
@@ -125,9 +128,9 @@ GÖREV
 2) Senaryoyu ${input.tone} tonda, ${sign.voice} sesiyle kur. ${input.angle.trim() ? `Ek açıyı ("${input.angle.trim()}") mutlaka kullan.` : ''}
 3) ${citationLine(input.citationMode)}
 4) Higgsfield için İngilizce, 120-180 kelimelik, tek planlı video promptunu yaz. Karakter: ${input.character}, yaş 28-38, Türk/Orta Doğu yüz hatları, doğal ten, abartısız makyaj. Ortam: Osmanlı-İslam astronomi çalışma odası; eski burç haritaları, pirinç usturlap, İznik çini detayı, kemerli pencere. Kamera ve ışığı tona göre ayarla.
-5) JSON'u eksiksiz doldur. "script" dizisi hook dahil 8-12 replik olsun; "closing" ayrı kalsın. "sourceNotes" yalnızca atıf modu "yok" değilse dolu olsun; her notta sayfa numarası bulunsun.
+5) JSON'u eksiksiz doldur. "script" dizisi hook dahil 8-12 replik olsun (tam seslendirme); "closing" ayrı kalsın. higgsfieldPrompt içindeki Dialogue satırı en fazla 25-30 kelime olsun ve tam script'i oraya koyma. "sourceNotes" yalnızca atıf modu "yok" değilse dolu olsun; her notta sayfa numarası bulunsun.
 6) Hiçbir dini metin uydurma; hiçbir kesin kehanet kurma.
-7) YAZMADAN ÖNCE KONTROL ET: Seçilen burç ${sign.name} mi? Ay burcu ${astro.primaryMoonSign.name} olarak mı geçiyor? Günün gezegeni ${astro.planetaryDay} mi? script 8-12 replik mi? higgsfieldPrompt 120-180 kelime mi? Tüm JSON alanları dolu mu? Değilse düzelt, sonra JSON'u kapat.`;
+7) YAZMADAN ÖNCE KONTROL ET: Seçilen burç ${sign.name} mi? Ay burcu ${astro.primaryMoonSign.name} burcunda olarak mı geçiyor? Günün gezegeni ${astro.planetaryDay} mi? script 8-12 replik mi? higgsfieldPrompt 120-180 kelime mi? Dialogue 25-30 kelime mi? Tüm JSON alanları dolu mu? Değilse düzelt, sonra JSON'u kapat.`;
 }
 
 function asString(v: unknown, fallback = ''): string {
@@ -186,11 +189,14 @@ export function enforceHiggsfieldPrompt(prompt: string, hook: string, duration: 
   if (!/direct[- ]to[- ]camera|to camera/i.test(p)) {
     p += ' The character speaks directly to camera.';
   }
-  if (!/dialogue|lip[- ]?sync/i.test(p)) {
-    p += ` Dialogue (Turkish, lip-synced): "${hook}"`;
-  } else if (!/["“]/.test(p)) {
-    p += ` Spoken line (Turkish): "${hook}"`;
-  }
+  // Modelin ürettiği Dialogue/Spoken line bölümü İngilizce veya 12 sn için fazla uzun olabilir.
+  // Temizle ve her zaman kısa, Türkçe hook ile sabitle.
+  p = p.replace(/\bDialogue\b[^:\n]*:\s*["“][\s\S]*?["”]\s*/gi, ' ');
+  p = p.replace(/\bDialogue\b[^.\n]*\.\s*/gi, ' ');
+  p = p.replace(/\bSpoken line\b[^.\n]*\.?\s*/gi, ' ');
+  p = p.replace(/slight accent/gi, 'native Turkish, Istanbul accent');
+  p = p.replace(/\s+/g, ' ').trim();
+  p += ` Dialogue (Turkish, lip-synced): "${hook}"`;
   return p;
 }
 
@@ -208,7 +214,9 @@ export function validateContent(content: GeneratedContent, input: GenerateInput)
 }
 
 export function normalizeContent(partial: Partial<GeneratedContent>, input: GenerateInput, chunks: RetrievedChunk[]): GeneratedContent {
-  const script = partial.script?.length ? partial.script : [partial.hook || 'Bugün sana kendi gölgenden bir haber getirdim.'];
+  const rawScript = partial.script?.length ? partial.script : [partial.hook || 'Bugün sana kendi gölgenden bir haber getirdim.'];
+  // Parantez içi sahne notları seslendirilmemeli; script'i konuşulacak kelimelere indir.
+  const script = rawScript.map((line) => line.replace(/\s*\([^)]*\)/g, '').trim()).filter(Boolean);
   const fallbackSources = input.citationMode === 'yok' ? [] : chunks.slice(0, 3).map((r) => `${r.chunk.title} (s. ${r.chunk.page})`);
   return {
     hook: partial.hook || script[0] || `${input.sign.name}, bugün bir şeyi bırakmanın vakti.`,

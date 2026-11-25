@@ -211,13 +211,17 @@ export function ResultView(props: Props) {
 
       <div className="tabs" role="tablist">
         <button type="button" role="tab" aria-selected={tab === 'prompt'} className={tab === 'prompt' ? 'is-active' : ''} onClick={() => setTab('prompt')}>Video Prompt</button>
-        <button type="button" role="tab" aria-selected={tab === 'script'} className={tab === 'script' ? 'is-active' : ''} onClick={() => setTab('script')}>Konuşma Metni</button>
+        <button type="button" role="tab" aria-selected={tab === 'script'} className={tab === 'script' ? 'is-active' : ''} onClick={() => setTab('script')}>Konuşma Metni <span>tam</span></button>
         <button type="button" role="tab" aria-selected={tab === 'social'} className={tab === 'social' ? 'is-active' : ''} onClick={() => setTab('social')}>Sosyal Medya</button>
         <button type="button" role="tab" aria-selected={tab === 'sources'} className={tab === 'sources' ? 'is-active' : ''} onClick={() => setTab('sources')}>Kaynaklar <span>{meta.chunks.length}</span></button>
       </div>
 
       {tab === 'prompt' && (
         <div className="tab-body">
+          <div className="usage-callout">
+            <strong>Higgsfield’a bu promptu yapıştır.</strong>
+            <p>Ana plan promptu; 9:16, tek plan ve kısa <code>Dialogue</code> satırını içerir. 8-12 repliklik tam metin <b>Konuşma Metni</b> sekmesindedir; onu video promptuna tamamıyla yapıştırma, seslendirme/altyazı için kullan.</p>
+          </div>
           <PromptBlock title="Higgsfield · Ana Plan" kicker="9:16 · tek plan · lip-sync" text={content.higgsfieldPrompt} onCopy={props.onCopy} copied={props.copied} />
           <PromptBlock title="B-roll · Ara Plan" kicker="4 sn · sembolik kesme" text={content.bRollPrompt} onCopy={props.onCopy} copied={props.copied} tone="light" />
           <div className="prompt-two-col">
@@ -232,6 +236,10 @@ export function ResultView(props: Props) {
 
       {tab === 'script' && (
         <div className="tab-body">
+          <div className="usage-callout">
+            <strong>Bu tam seslendirme metnidir.</strong>
+            <p>12 saniyelik videoya tamamını sığdırma. Videoda söylenecek kısa replik <b>Video Prompt</b> içindeki <code>Dialogue</code> satırıdır. Bu metni ayrı voiceover, altyazı veya daha uzun bir kesitte kullan.</p>
+          </div>
           <div className="hook-card">
             <span className="hook-label">HOOK · 0-3 sn</span>
             <p>{content.hook}</p>
