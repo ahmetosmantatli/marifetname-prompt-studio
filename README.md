@@ -1,5 +1,9 @@
 # Mârifetnâme Prompt Atölyesi
 
+[![Canlı site](https://img.shields.io/badge/canl%C4%B1-site-c9a45c)](https://ahmetosmantatli.github.io/marifetname-prompt-studio/) [![GitHub](https://img.shields.io/badge/GitHub-repo-181717)](https://github.com/ahmetosmantatli/marifetname-prompt-studio)
+
+**Canlı:** <https://ahmetosmantatli.github.io/marifetname-prompt-studio/>
+
 Erzurumlu İbrahim Hakkı'nın **Mârifetnâme**'sindeki burç, gezegen, Ay, mizaç ve mevsim tasnifinden beslenen; kadın/erkek karakter, zaman aralığı ve ton seçimiyle **Higgsfield'a hazır dikey video promptu** üreten RAG stüdyosu.
 
 > Kehanet değil, tefekkür. Yıldızlar sebep; hakiki müessir Allah.
