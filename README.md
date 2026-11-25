@@ -33,14 +33,33 @@ npm run dev
 Açılan adreste sağ üstteki **Ayarlar**'dan:
 
 1. **Demo** ile anahtarsız deneyin.
-2. **Groq** seçip `gsk_...` anahtarını girin; model olarak `llama-3.3-70b-versatile` önerilir.
-3. **Gemini** seçip `AIza...` anahtarını girin; model olarak `gemini-2.5-flash` önerilir.
+2. **Groq** seçip `gsk_...` anahtarını girin; model olarak `openai/gpt-oss-20b` (hızlı) veya `openai/gpt-oss-120b` (daha kaliteli) önerilir.
+3. **Gemini** seçip `AIza...` anahtarını girin; model olarak `gemini-3.5-flash` önerilir. Daha hızlı/ucuz için `gemini-3.1-flash-lite`.
 4. İsterseniz **Semantik RAG**'i açın; Gemini embedding ile anlamsal arama devreye girer.
 
 Anahtarlar nereden alınır?
 
 - Groq: <https://console.groq.com/keys>
 - Gemini: <https://aistudio.google.com/app/apikey>
+
+## Model ve limit gerçekleri (26 Kasım 2026 itibarıyla test edildi)
+
+Bu proje için tipik istek **~3.000 girdi tokenı** ve **~1.000-1.500 çıktı tokenı** üretir. Yani bağlam limiti darboğaz değil; asıl sınır Groq'un ücretsiz dakikalık token kotası.
+
+| Sağlayıcı / model | Bağlam | Maks. çıktı | Durum |
+|---|---|---|---|
+| Groq `openai/gpt-oss-20b` | 131.072 | 65.536 | ✅ Varsayılan; ~5 sn |
+| Groq `openai/gpt-oss-120b` | 131.072 | 65.536 | ✅ Daha kaliteli; ~11 sn |
+| Groq `qwen/qwen3.8-27b` | 131.072 | 16.384 | ✅ En hızlı; ücretsiz OTPM 1.000, uygulama 1.000 token ile sınırlar |
+| Groq `allam-2-7b` | 4.096 | 4.096 | ❌ Bağlam yetersiz; listeden çıkarıldı |
+| Gemini `gemini-3.5-flash` | 1.048.576 | 65.536 | ✅ Türkçe kalitesi en iyi; ~8 sn |
+| Gemini `gemini-3.1-flash-lite` | 1.048.576 | 65.536 | ✅ Hızlı yedek; ~3,5 sn |
+| Gemini `gemini-2.5-flash` | 1.048.576 | 65.536 | ❌ Yeni anahtarlara kapalı |
+| Gemini `gemini-3.8-flash` | 1.048.576 | 65.536 | ⚠️ Yavaş/yoğun olabilir; 75 sn üstü |
+
+**Groq ücretsiz katmanı:** TPM 8.000. Tek istek ~6-7k token tuttuğu için art arda üretimde yaklaşık 1 dakika beklemek gerekir. Uygulama bunu Türkçe ve anlaşılır bir hata mesajına çevirir; otomatik yeniden denemez. Qwen'de OTPM 1.000 olduğu için max çıktı 1.000'e sabitlenir.
+
+**Eksik çıktı koruması:** Maksimum çıktı varsayılanı 4096; JSON ayrıştırma başarısız olursa bir kez sıkı JSON denemesi yapılır; `script` 8'den az, `higgsfieldPrompt` 100 kelimeden az veya zorunlu alan boşsa bir kez “tam çıktı” turu çalışır. 9:16, süre ve diyalog satırı modelden gelmezse kod tarafından eklenir.
 
 ## Nasıl çalışır?
 

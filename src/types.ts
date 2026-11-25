@@ -69,6 +69,7 @@ export interface Settings {
   embeddingModel: string;
   semanticRag: boolean;
   temperature: number;
+  maxOutputTokens: number;
 }
 
 export interface AstroContext {

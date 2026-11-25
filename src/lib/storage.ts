@@ -9,7 +9,16 @@ export function loadSettings(): Settings {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return { ...DEFAULT_SETTINGS };
     const parsed = JSON.parse(raw) as Partial<Settings>;
-    return { ...DEFAULT_SETTINGS, ...parsed };
+    const merged: Settings = { ...DEFAULT_SETTINGS, ...parsed };
+    // Eski sürümlerde kalan, artık kullanılamayan modelleri güncelle.
+    if (merged.groqModel === 'llama-3.3-70b-versatile' || merged.groqModel === 'llama-3.1-8b-instant') {
+      merged.groqModel = DEFAULT_SETTINGS.groqModel;
+    }
+    if (['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'].includes(merged.geminiModel)) {
+      merged.geminiModel = DEFAULT_SETTINGS.geminiModel;
+    }
+    if (!Number.isFinite(merged.maxOutputTokens)) merged.maxOutputTokens = DEFAULT_SETTINGS.maxOutputTokens;
+    return merged;
   } catch {
     return { ...DEFAULT_SETTINGS };
   }

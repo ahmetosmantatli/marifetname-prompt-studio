@@ -86,11 +86,32 @@ Negatif prompt: ekran yazısı, logo, filigran, fazla parmak, yüz bozulması, p
 
 `src/lib/prompt.ts` içindeki `parseModelJson` kod bloğu, fence, Türkçe anahtar ve eksik alan toleransı sağlar. `normalizeContent` boş alanları güvenli varsayılanlarla doldurur.
 
+## Zaman bağlamı koruması
+
+Modeller ilk testlerde seçilen burç ile Ay burcunu karıştırdı (ör. Yay karakteri için “Ay Yay'da” yazdı). Bunu önlemek için:
+
+- Kullanıcı promptunda “SEÇİLEN BURÇ” ve “AY BURCU” ayrı etiketlenir.
+- “Ay X'te deme; doğru ifade Ay Y'de” kuralı açıkça yazılır.
+- Günün gezegeni ve gezegen saati aynen verilir; başka gezegen uydurma yasağı eklenir.
+- Görev sonunda “yazmadan önce kontrol et” listesi bulunur.
+
+## Çıktı tamamlama ve doğrulama
+
+1. `maxOutputTokens` varsayılan 4096; modelin izin verdiği üst sınıra göre kırpılır.
+2. Gemini 3.5 Flash'ta `thinkingBudget: 0` kullanılır; düşünme tokenları çıktıyı yemesin.
+3. JSON ayrıştırma başarısız olursa düşük sıcaklıkla bir “sadece JSON” denemesi yapılır.
+4. `validateContent`; hook, 8+ replik, kapanış, 120+ kelime Higgsfield promptu, caption ve ekran yazılarını kontrol eder.
+5. Eksik varsa bir “tam çıktı” turu daha çalışır; yine eksikse sonuç yine gösterilir ve kullanıcı uyarılır.
+6. `enforceHiggsfieldPrompt`; 9:16, süre, doğrudan kamera ve diyalog satırı eksikse tamamlar.
+
 ## Model önerileri
 
-- **Groq / `llama-3.3-70b-versatile`**: Türkçe akıcılık ve JSON disiplini dengeli.
+- **Groq / `openai/gpt-oss-20b`**: hızlı, dengeli, varsayılan.
+- **Groq / `openai/gpt-oss-120b`**: daha kaliteli, daha yavaş.
+- **Groq / `qwen/qwen3.8-27b`**: en hızlı; OTPM 1.000 nedeniyle max çıktı 1.000.
 - **Groq / `openai/gpt-oss-120b`**: daha yaratıcı, daha yavaş.
-- **Gemini / `gemini-2.5-flash`**: hızlı, iyi Türkçe; semantik RAG için aynı anahtar kullanılabilir.
+- **Gemini / `gemini-3.5-flash`**: en iyi Türkçe kalitesi; `thinkingBudget: 0` ile ~8 sn. Semantik RAG için aynı anahtar kullanılabilir.
+- **Gemini / `gemini-3.1-flash-lite`**: hızlı yedek; yoğun saatlerde 503 dönebilir.
 - **Sıcaklık**: 0.8-0.9. Daha düşük değerler tekrara, daha yüksek değerler format bozulmasına yol açabilir.
 
 ## İçerik güvenliği

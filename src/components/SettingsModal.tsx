@@ -12,8 +12,8 @@ interface Props {
 
 const PROVIDERS: { id: Provider; title: string; tag: string; desc: string }[] = [
   { id: 'demo', title: 'Demo', tag: 'anahtarsız', desc: 'Yerel şablon motoru. Canlı siteyi hemen denemek ve yapıyı görmek için.' },
-  { id: 'groq', title: 'Groq', tag: 'ücretsiz katman', desc: 'Llama 3.3, GPT-OSS, Qwen gibi hızlı modeller. Üretim için önerilir.' },
-  { id: 'gemini', title: 'Gemini', tag: 'ücretsiz katman', desc: 'Flash modelleri + semantik RAG için embedding desteği.' }
+  { id: 'groq', title: 'Groq', tag: 'ücretsiz katman', desc: 'GPT-OSS 20B/120B ve Qwen 3.8. Hızlı ve JSON disiplini iyi; 131k bağlam.' },
+  { id: 'gemini', title: 'Gemini', tag: 'ücretsiz katman', desc: '3.5 Flash / 3.1 Flash Lite. Türkçe kalitesi en iyi; 1M bağlam + embedding.' }
 ];
 
 export function SettingsModal({ settings, onSave, onClose }: Props) {
@@ -36,6 +36,7 @@ export function SettingsModal({ settings, onSave, onClose }: Props) {
 
   const update = <K extends keyof Settings>(key: K, value: Settings[K]) => {
     setDraft((d) => ({ ...d, [key]: value }));
+    if (key === 'provider') setModels([]);
     setMessage('');
     setError('');
   };
@@ -84,8 +85,8 @@ export function SettingsModal({ settings, onSave, onClose }: Props) {
       ...draft,
       groqKey: draft.groqKey.trim(),
       geminiKey: draft.geminiKey.trim(),
-      groqModel: draft.groqModel.trim() || 'llama-3.3-70b-versatile',
-      geminiModel: draft.geminiModel.trim() || 'gemini-2.5-flash',
+      groqModel: draft.groqModel.trim() || 'openai/gpt-oss-20b',
+      geminiModel: draft.geminiModel.trim() || 'gemini-3.5-flash',
       embeddingModel: draft.embeddingModel.trim() || 'gemini-embedding-001'
     });
   };
@@ -142,13 +143,18 @@ export function SettingsModal({ settings, onSave, onClose }: Props) {
               <label>
                 <span>Model</span>
                 <div className="model-row">
-                  <input list="groq-model-list" value={draft.groqModel} onChange={(e) => update('groqModel', e.target.value)} placeholder="llama-3.3-70b-versatile" />
+                  <input list="groq-model-list" value={draft.groqModel} onChange={(e) => update('groqModel', e.target.value)} placeholder="openai/gpt-oss-20b" />
                   <button type="button" className="ghost-small" onClick={fetchModels} disabled={busy || !draft.groqKey.trim()}>{busy ? '…' : 'Modelleri getir'}</button>
                 </div>
                 <datalist id="groq-model-list">
                   {(models.length ? models : GROQ_SUGGESTIONS).map((m) => <option key={m} value={m} />)}
                 </datalist>
-                <small className="field-hint">Öneri: <code>llama-3.3-70b-versatile</code> (Türkçe ve JSON için dengeli).</small>
+                <div className="model-chips">
+                  {GROQ_SUGGESTIONS.map((m) => (
+                    <button key={m} type="button" className={`model-chip${draft.groqModel === m ? ' is-active' : ''}`} onClick={() => update('groqModel', m)}>{m}</button>
+                  ))}
+                </div>
+                <small className="field-hint">Öneri: <code>openai/gpt-oss-20b</code> hızlı; <code>openai/gpt-oss-120b</code> daha kaliteli; <code>qwen/qwen3.8-27b</code> en hızlı. Eski <code>llama-3.3-70b</code> artık bu anahtarda yok.</small>
               </label>
             </section>
           )}
@@ -173,13 +179,18 @@ export function SettingsModal({ settings, onSave, onClose }: Props) {
               <label>
                 <span>Üretim modeli</span>
                 <div className="model-row">
-                  <input list="gemini-model-list" value={draft.geminiModel} onChange={(e) => update('geminiModel', e.target.value)} placeholder="gemini-2.5-flash" />
+                  <input list="gemini-model-list" value={draft.geminiModel} onChange={(e) => update('geminiModel', e.target.value)} placeholder="gemini-3.5-flash" />
                   <button type="button" className="ghost-small" onClick={fetchModels} disabled={busy || !draft.geminiKey.trim()}>{busy ? '…' : 'Modelleri getir'}</button>
                 </div>
                 <datalist id="gemini-model-list">
                   {(models.length ? models : GEMINI_SUGGESTIONS).map((m) => <option key={m} value={m} />)}
                 </datalist>
-                <small className="field-hint">Öneri: <code>gemini-2.5-flash</code>. Kotayı daha yavaş tüketmek için <code>gemini-2.5-flash-lite</code>.</small>
+                <div className="model-chips">
+                  {GEMINI_SUGGESTIONS.map((m) => (
+                    <button key={m} type="button" className={`model-chip${draft.geminiModel === m ? ' is-active' : ''}`} onClick={() => update('geminiModel', m)}>{m}</button>
+                  ))}
+                </div>
+                <small className="field-hint">Öneri: <code>gemini-3.5-flash</code> (Türkçe kalitesi en iyi). Daha hızlı/ucuz: <code>gemini-3.1-flash-lite</code>. <code>2.5-flash</code> yeni anahtarlara kapalı.</small>
               </label>
               <label>
                 <span>Semantik RAG (embedding)</span>
@@ -203,6 +214,24 @@ export function SettingsModal({ settings, onSave, onClose }: Props) {
               </label>
             </section>
           )}
+
+          <section className="settings-fields">
+            <label>
+              <span>Maksimum çıktı tokenı</span>
+              <select value={draft.maxOutputTokens} onChange={(e) => update('maxOutputTokens', Number(e.target.value))}>
+                <option value={2048}>2048 — kısa / riskli</option>
+                <option value={4096}>4096 — önerilen</option>
+                <option value={6144}>6144 — uzun senaryo</option>
+                <option value={8192}>8192 — maksimum</option>
+              </select>
+              <small className="field-hint">Eksik JSON'u önlemek için <strong>4096</strong> önerilir. Çıktı yarıda kalırsa 6144'e çıkar. Girdi ~3.000 token; önerilen modellerin bağlamı 131k/1M.</small>
+            </label>
+          </section>
+
+          <div className="capacity-note">
+            <strong>Kapasite kontrolü</strong>
+            <p>Tipik istek: ~3.000 girdi + ~1.000-1.500 çıktı tokenı. Bağlam limiti rahat; asıl sınır Groq ücretsiz <strong>TPM 8.000</strong>. Tek üretim ~6-7k token tuttuğu için art arda üretimde ~1 dakika bekleyin. Qwen’de <strong>OTPM 1.000</strong> olduğundan max çıktı 1.000’e sabitlenir. 4k bağlamlı <code>allam-2-7b</code> ve ses/görsel modelleri listeden çıkarıldı.</p>
+          </div>
 
           {draft.provider === 'demo' && (
             <section className="demo-note">

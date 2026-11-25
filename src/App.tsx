@@ -12,10 +12,10 @@ import type {
 import { getSign } from './data/signs';
 import { KNOWLEDGE } from './data/knowledge';
 import { buildAstroContext } from './lib/astro';
-import { buildUserPrompt, normalizeContent, SYSTEM_PROMPT } from './lib/prompt';
+import { buildUserPrompt, normalizeContent, SYSTEM_PROMPT, validateContent } from './lib/prompt';
 import { retrieveChunksHybrid } from './lib/rag';
 import { generateDemoContent } from './lib/demo';
-import { callGemini, callGroq } from './lib/providers';
+import { callGemini, callGroq, recommendedFallback, shouldFallback } from './lib/providers';
 import { loadHistory, loadSettings, saveHistory, saveSettings, uid } from './lib/storage';
 import { buildExportText, downloadText } from './lib/export';
 import { SignWheel } from './components/SignWheel';
@@ -86,19 +86,56 @@ export default function App() {
       });
       let content;
       let model: string;
+      let activeSettings = settings;
       if (settings.provider === 'demo') {
         setProgress('Yerel şablon motoru yazıyor…');
         content = generateDemoContent(input, astro, chunks);
         model = 'yerel şablon v1';
       } else {
+        const runProvider = async (s: Settings, strictNote = '') => {
+          const userPrompt = buildUserPrompt(input, astro, chunks, s);
+          const finalPrompt = strictNote ? `${userPrompt}\n\n${strictNote}` : userPrompt;
+          return s.provider === 'groq'
+            ? callGroq(SYSTEM_PROMPT, finalPrompt, s)
+            : callGemini(SYSTEM_PROMPT, finalPrompt, s);
+        };
+
         setProgress('Model senaryoyu ve video promptunu yazıyor…');
-        const userPrompt = buildUserPrompt(input, astro, chunks, settings);
-        const out =
-          settings.provider === 'groq'
-            ? await callGroq(SYSTEM_PROMPT, userPrompt, settings)
-            : await callGemini(SYSTEM_PROMPT, userPrompt, settings);
+        let out;
+        try {
+          out = await runProvider(activeSettings);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          const fallback = recommendedFallback(activeSettings.provider, activeSettings.provider === 'groq' ? activeSettings.groqModel : activeSettings.geminiModel);
+          if (!fallback || !shouldFallback(message)) throw err;
+          setProgress(`Seçili model yanıt vermedi; ${fallback} ile tekrar deneniyor…`);
+          activeSettings = {
+            ...activeSettings,
+            ...(activeSettings.provider === 'groq' ? { groqModel: fallback } : { geminiModel: fallback })
+          };
+          out = await runProvider(activeSettings);
+          setToast(`Model değiştirildi: ${fallback}`);
+        }
+
         content = normalizeContent(out.content, input, chunks);
         model = out.model;
+        const issues = validateContent(content, input);
+        if (issues.length) {
+          setProgress(`Çıktı tamamlanıyor: ${issues.join(', ')}…`);
+          try {
+            out = await runProvider(
+              activeSettings,
+              `DÜZELTME: Önceki yanıt şu alanlarda eksikti: ${issues.join(', ')}. Aynı burç, zaman ve ton için tüm alanları dolu, geçerli JSON olarak yeniden yaz. script 8-12 replik, higgsfieldPrompt 120-180 kelime olsun.`
+            );
+            content = normalizeContent(out.content, input, chunks);
+            model = out.model;
+            const remaining = validateContent(content, input);
+            if (remaining.length) setToast(`Bazı alanlar sınırlı kaldı: ${remaining.join(', ')}`);
+          } catch {
+            // Tamamlama turu kotaya takılırsa ilk çıktıyı kaybetme.
+            setToast('Tamamlama turu tamamlanamadı; ilk çıktı gösteriliyor.');
+          }
+        }
       }
       const item: HistoryItem = {
         id: uid(),

@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { callGemini, callGroq, listGroqModels, testProvider } from '../providers';
-import { buildUserPrompt, SYSTEM_PROMPT } from '../prompt';
+import { buildUserPrompt, enforceHiggsfieldPrompt, SYSTEM_PROMPT, validateContent } from '../prompt';
 import { buildAstroContext } from '../astro';
 import { retrieveChunks } from '../rag';
 import { DEFAULT_SETTINGS } from '../../data/models';
 import { getSign } from '../../data/signs';
+import { generateDemoContent } from '../demo';
 import type { GenerateInput, Settings } from '../../types';
 
 const input: GenerateInput = {
@@ -43,6 +44,21 @@ describe('prompt', () => {
     expect(SYSTEM_PROMPT).toContain('Mârifetnâme');
   });
 
+  it('Higgsfield promptunu 9:16, süre ve diyalog ile tamamlar', () => {
+    const p = enforceHiggsfieldPrompt('A cinematic shot of a man in a study, speaking.', 'Yay, bu hafta...', 10);
+    expect(p).toContain('Vertical 9:16');
+    expect(p).toMatch(/10[- ]second/);
+    expect(p).toContain('Dialogue (Turkish');
+    expect(p).toContain('Yay, bu hafta...');
+  });
+
+  it('demo çıktısı kalite kontrolünden geçer', () => {
+    const astro = buildAstroContext('hafta', new Date('2026-11-25T10:00:00Z'));
+    const chunks = retrieveChunks(input, astro, 6);
+    const content = generateDemoContent(input, astro, chunks);
+    expect(validateContent(content, input)).toEqual([]);
+  });
+
   it('kullanıcı promptu RAG sayfalarını ve atıf modunu taşır', () => {
     const astro = buildAstroContext('hafta', new Date('2026-11-25T10:00:00Z'));
     const chunks = retrieveChunks(input, astro, 6);
@@ -66,7 +82,7 @@ describe('providers', () => {
       choices: [{ message: { content: '{"hook":"Groq hook","script":["a","b"],"closing":"c"}' } }]
     })));
     const out = await callGroq('s', 'u', settings);
-    expect(out.model).toBe('llama-3.3-70b-versatile');
+    expect(out.model).toBe('openai/gpt-oss-20b');
     expect(out.content.hook).toBe('Groq hook');
     expect(out.content.script).toEqual(['a', 'b']);
   });
@@ -86,7 +102,12 @@ describe('providers', () => {
 
   it('Groq model listesini döndürür', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({
-      data: [{ id: 'model-b', active: true }, { id: 'model-a', active: true }, { id: 'off', active: false }]
+      data: [
+        { id: 'model-b', active: true, context_window: 131072 },
+        { id: 'model-a', active: true, context_window: 131072 },
+        { id: 'off', active: false, context_window: 131072 },
+        { id: 'small', active: true, context_window: 4096 }
+      ]
     })));
     await expect(listGroqModels('gsk_test')).resolves.toEqual(['model-a', 'model-b']);
   });

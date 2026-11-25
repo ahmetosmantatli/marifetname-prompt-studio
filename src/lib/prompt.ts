@@ -12,6 +12,8 @@ SENARYO KURALLARI
 - İlk cümle 3 saniyede yakalayan bir hook olsun. Hook'ta burcun adını söyle.
 - Burcun gölgesini ve arzusunu somut bir insan sahnesiyle anlat; genel geçer burç cümleleri kurma.
 - Günün/ayın bağlamını (Ay burcu, gezegen günü, mevsim) doğal biçimde metne dokundur; ansiklopedik bilgi verme.
+- ZAMAN BAĞLAMI: Seçilen burç ile Ay burcunu asla karıştırma. Ay burcu ayrı bir gökcismi bağlamıdır; metinde Ay'dan söz edeceksen yalnızca verilen gerçek Ay burcunu söyle. Günün gezegeni ve gezegen saatini aynen kullan; olmayan bir gezegen saatini uydurma.
+- TAMAMLIK: JSON'daki hiçbir alanı boş bırakma. script 8-12 replik, higgsfieldPrompt 120-180 kelime, caption ve sourceNotes dolu olsun.
 - İslami çerçeve: tevekkül, niyet, sabır, şükür, kalbi temiz tutma gibi kavramları doğal kullan. Her replikte dini ifade kullanma; 1-2 yerde yeterli.
 - Kuran ayeti veya hadis uydurma. Verilen kaynaklarda geçmeyen dini bir metni alıntılama. Dinî hüküm/fetva verme.
 - Kesin kehanet yok: "kesin olacak", "ölüm", "hastalık", "kaza", "boşanma", "hamilelik", "zengin olacaksın" gibi ifadeler kullanma. "Kesin" yerine "eğilim", "davet", "fırsat", "imtihan" gibi dil kullan.
@@ -82,15 +84,22 @@ Süre: ${input.duration} saniye
 İzleyici: 25-45 yaş, manevi hassasiyeti olan, burç içeriğini "kendini tanıma" diliyle tüketen kitle.
 Ek açı: ${input.angle.trim() || 'Yok'}
 
-GÖK TAKVİMİ BAĞLAMI (Mârifetnâme'nin tasnifine göre)
+GÖK TAKVİMİ BAĞLAMI (Mârifetnâme'nin tasnifine göre — AYNEN KULLAN)
 Tarih: ${astro.dateLabel} (${astro.hijri})
-Güneş burcu: ${astro.sunSign.name}
-Ay burcu: ${moonLine}${astro.moonSigns.length > 1 ? ' (dönem içinde değişiyor)' : ''}
+SEÇİLEN BURÇ (karakter): ${sign.name} — bu Ay burcu değildir.
+Güneş'in şu anki burcu (takvim): ${astro.sunSign.name}
+AY BURCU (zaman bağlamı): ${moonLine}${astro.moonSigns.length > 1 ? ' (dönem içinde değişiyor)' : ''}
 Ay evresi: ${astro.moonPhase} — aydınlanma %${Math.round(astro.illumination * 100)}
 Günün gezegeni: ${astro.planetaryDay}
 Gezegen saati: ${astro.planetaryHour}
 Mevsim: ${astro.season}
 Ay'ın o burçtaki iş takvimi: ${astro.primaryMoonSign.moonElection}
+
+ZAMAN BAĞLAMI DOĞRULUK KURALLARI
+- Metinde "Ay ${sign.name}'da" DEME. Doğru ifade: "Ay ${astro.primaryMoonSign.name}'da".
+- Seçilen burç ${sign.name}; Ay burcu ${astro.primaryMoonSign.name}. Bu ikisi farklı şeylerdir.
+- Günün gezegeni ${astro.planetaryDay}; gezegen saati ${astro.planetaryHour}. Bunların dışında bir gezegen saatinden söz etme.
+- Ay evresini ve mevsimi yalnızca yukarıdaki gibi kullan.
 
 BURÇ DOSYASI
 Unsur: ${sign.element} — ${sign.elementNature}
@@ -117,7 +126,8 @@ GÖREV
 3) ${citationLine(input.citationMode)}
 4) Higgsfield için İngilizce, 120-180 kelimelik, tek planlı video promptunu yaz. Karakter: ${input.character}, yaş 28-38, Türk/Orta Doğu yüz hatları, doğal ten, abartısız makyaj. Ortam: Osmanlı-İslam astronomi çalışma odası; eski burç haritaları, pirinç usturlap, İznik çini detayı, kemerli pencere. Kamera ve ışığı tona göre ayarla.
 5) JSON'u eksiksiz doldur. "script" dizisi hook dahil 8-12 replik olsun; "closing" ayrı kalsın. "sourceNotes" yalnızca atıf modu "yok" değilse dolu olsun; her notta sayfa numarası bulunsun.
-6) Hiçbir dini metin uydurma; hiçbir kesin kehanet kurma.`;
+6) Hiçbir dini metin uydurma; hiçbir kesin kehanet kurma.
+7) YAZMADAN ÖNCE KONTROL ET: Seçilen burç ${sign.name} mi? Ay burcu ${astro.primaryMoonSign.name} olarak mı geçiyor? Günün gezegeni ${astro.planetaryDay} mi? script 8-12 replik mi? higgsfieldPrompt 120-180 kelime mi? Tüm JSON alanları dolu mu? Değilse düzelt, sonra JSON'u kapat.`;
 }
 
 function asString(v: unknown, fallback = ''): string {
@@ -163,6 +173,40 @@ export function parseModelJson(raw: string): Partial<GeneratedContent> {
   };
 }
 
+export function enforceHiggsfieldPrompt(prompt: string, hook: string, duration: number): string {
+  if (!prompt.trim()) return '';
+  let p = prompt.trim();
+  const hasVertical = /(9\s*:\s*16|vertical)/i.test(p);
+  const hasDuration = /\b\d{1,2}\s*(?:-| )\s*(?:second|seconds|sec|sn)\b/i.test(p) || /\b\d{1,2}\s*saniye\b/i.test(p);
+  if (!hasVertical) {
+    p = `Vertical 9:16, ${duration}-second single continuous shot, direct-to-camera. ${p}`;
+  } else if (!hasDuration) {
+    p += ` Duration: ${duration} seconds, single continuous shot.`;
+  }
+  if (!/direct[- ]to[- ]camera|to camera/i.test(p)) {
+    p += ' The character speaks directly to camera.';
+  }
+  if (!/dialogue|lip[- ]?sync/i.test(p)) {
+    p += ` Dialogue (Turkish, lip-synced): "${hook}"`;
+  } else if (!/["“]/.test(p)) {
+    p += ` Spoken line (Turkish): "${hook}"`;
+  }
+  return p;
+}
+
+export function validateContent(content: GeneratedContent, input: GenerateInput): string[] {
+  const issues: string[] = [];
+  if (!content.hook || content.hook.trim().length < 12) issues.push('hook eksik/kısa');
+  if (content.script.length < 8) issues.push(`script ${content.script.length}/8 replik`);
+  if (!content.closing.trim()) issues.push('closing eksik');
+  const hfWords = content.higgsfieldPrompt.trim().split(/\s+/).filter(Boolean).length;
+  if (hfWords < 100) issues.push(`higgsfieldPrompt ${hfWords}/120 kelime`);
+  if (!content.caption.trim()) issues.push('caption eksik');
+  if (!content.onScreenText.length) issues.push('onScreenText eksik');
+  if (input.citationMode !== 'yok' && content.sourceNotes.length === 0) issues.push('sourceNotes eksik');
+  return issues;
+}
+
 export function normalizeContent(partial: Partial<GeneratedContent>, input: GenerateInput, chunks: RetrievedChunk[]): GeneratedContent {
   const script = partial.script?.length ? partial.script : [partial.hook || 'Bugün sana kendi gölgenden bir haber getirdim.'];
   const fallbackSources = input.citationMode === 'yok' ? [] : chunks.slice(0, 3).map((r) => `${r.chunk.title} (s. ${r.chunk.page})`);
@@ -170,7 +214,7 @@ export function normalizeContent(partial: Partial<GeneratedContent>, input: Gene
     hook: partial.hook || script[0] || `${input.sign.name}, bugün bir şeyi bırakmanın vakti.`,
     script,
     closing: partial.closing || 'Nefes al. Niyetini Allah’a bırak; adımını sen at.',
-    higgsfieldPrompt: partial.higgsfieldPrompt || '',
+    higgsfieldPrompt: enforceHiggsfieldPrompt(partial.higgsfieldPrompt || '', partial.hook || script[0] || input.sign.name, input.duration),
     bRollPrompt: partial.bRollPrompt || '',
     negativePrompt: partial.negativePrompt || 'No on-screen text, no extra fingers, no face morphing, no jump cuts, no celebrity likeness, no neon, no fantasy armor.',
     voiceDirection: partial.voiceDirection || 'Yakın mikrofon, alçak tempolu, nefes duyulacak kadar samimi; son cümlede sesi bir ton düşür.',
