@@ -6,6 +6,7 @@ export type Character = 'kadın' | 'erkek';
 export type Scope = 'bugun' | 'yarin' | 'hafta' | 'ay';
 export type CitationMode = 'yok' | 'arada' | 'guclu';
 export type Provider = 'groq' | 'gemini' | 'demo';
+export type SceneMode = 'app' | 'existing';
 
 export interface SignProfile {
   id: string;
@@ -98,7 +99,15 @@ export interface GenerateInput {
   citationMode: CitationMode;
   angle: string;
   platform: 'reels' | 'tiktok' | 'shorts';
-  duration: 8 | 10 | 12;
+  duration: number;
+  sceneMode: SceneMode;
+  referenceNote: string;
+}
+
+export interface ScenePart {
+  range: string;
+  visual: string;
+  dialogue: string;
 }
 
 export interface GeneratedContent {
@@ -114,6 +123,7 @@ export interface GeneratedContent {
   hashtags: string[];
   sourceNotes: string[];
   thumbnailText: string;
+  scenePlan?: ScenePart[];
 }
 
 export interface GenerationMeta {

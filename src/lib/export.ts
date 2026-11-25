@@ -9,7 +9,7 @@ export function buildExportText(item: HistoryItem): string {
     'MÂRİFETNÂME PROMPT ATÖLYESİ',
     '================================',
     `${sign.name} · ${astro.scopeLabel} · ${astro.rangeLabel}`,
-    `Karakter: ${meta.input.character} · Ton: ${meta.input.tone} · Sağlayıcı: ${meta.provider} / ${meta.model}`,
+    `Karakter: ${meta.input.character} · Ton: ${meta.input.tone} · Süre: ${meta.input.duration} sn · Sahne: ${meta.input.sceneMode === 'existing' ? 'mevcut karakter/ortam' : 'app tarifi'} · Sağlayıcı: ${meta.provider} / ${meta.model}`,
     `Üretim: ${new Date(item.createdAt).toLocaleString('tr-TR')}`,
     '',
     'HOOK',
@@ -23,6 +23,11 @@ export function buildExportText(item: HistoryItem): string {
     '',
     'HIGGSFIELD · ANA PLAN',
     content.higgsfieldPrompt,
+    '',
+    'SAHNE PLANI',
+    ...(content.scenePlan?.length
+      ? content.scenePlan.map((p) => `- ${p.range}\n  ${p.visual}\n  ${p.dialogue}`)
+      : ['- Tek klip / sahne planı yok']),
     '',
     'HIGGSFIELD · B-ROLL',
     content.bRollPrompt,

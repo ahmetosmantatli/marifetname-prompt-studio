@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { buildAstroContext, moonLongitude, planetaryDay, signFromLongitude, sunLongitude } from '../astro';
+import { getDurationProfile } from '../duration';
 import { getSign } from '../../data/signs';
 import { generateDemoContent } from '../demo';
-import { parseModelJson, normalizeContent } from '../prompt';
+import { buildUserPrompt, normalizeContent, parseModelJson } from '../prompt';
 import { retrieveChunks } from '../rag';
 import type { GenerateInput } from '../../types';
 
@@ -14,7 +15,9 @@ const input: GenerateInput = {
   citationMode: 'yok',
   angle: 'kariyerde görünmez emek',
   platform: 'reels',
-  duration: 10
+  duration: 12,
+  sceneMode: 'app',
+  referenceNote: ''
 };
 
 describe('astro', () => {
@@ -49,6 +52,36 @@ describe('astro', () => {
   });
 });
 
+describe('duration and scene', () => {
+  it('30 sn üstü tek klip değil, sahne planı üretir', () => {
+    const astro = buildAstroContext('bugun', new Date('2026-11-25T10:00:00Z'));
+    const chunks = retrieveChunks(input, astro, 6);
+    const longInput: GenerateInput = {
+      ...input,
+      duration: 40,
+      sceneMode: 'existing',
+      referenceNote: 'Soul ID: elif-01'
+    };
+    const prompt = buildUserPrompt(longInput, astro, chunks, {
+      provider: 'demo', groqKey: '', groqModel: '', geminiKey: '', geminiModel: '',
+      embeddingModel: '', semanticRag: false, temperature: 0.8, maxOutputTokens: 4096
+    });
+    expect(prompt).toContain('MEVCUT KARAKTER/ORTAM');
+    expect(prompt).toContain('multi-scene');
+    const content = normalizeContent({
+      hook: 'İkizler, bugün kendi emeğini gör.',
+      script: ['Bir', 'İki', 'Üç', 'Dört', 'Beş', 'Altı', 'Yedi', 'Sekiz', 'Dokuz', 'On'],
+      closing: 'Nefes al.',
+      higgsfieldPrompt: 'Existing character in an existing environment. '.repeat(8),
+      caption: 'x',
+      sourceNotes: []
+    }, longInput, chunks);
+    expect(content.scenePlan?.length).toBe(2);
+    expect(getDurationProfile(40).singleClip).toBe(false);
+    expect(getDurationProfile(12).singleClip).toBe(true);
+  });
+});
+
 describe('rag', () => {
   it('Koç için ateş, Merih ve Ay-Koç pasajlarını getirir', () => {
     const astro = buildAstroContext('bugun', new Date('2026-11-25T10:00:00Z'));
@@ -69,7 +102,7 @@ describe('demo', () => {
     expect(content.script.join(' ')).not.toContain('Mârifetnâme');
     expect(content.hook.length).toBeGreaterThan(10);
     expect(content.higgsfieldPrompt).toContain('Vertical 9:16');
-    expect(content.script.length).toBeGreaterThanOrEqual(8);
+    expect(content.script.length).toBeGreaterThanOrEqual(4);
   });
 
   it('güçlü atıf modunda sayfa numarası verir', () => {

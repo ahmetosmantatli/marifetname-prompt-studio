@@ -5,6 +5,7 @@ import type {
   GenerateInput,
   HistoryItem,
   Scope,
+  SceneMode,
   Settings,
   SignProfile,
   Tone
@@ -12,7 +13,7 @@ import type {
 import { getSign } from './data/signs';
 import { KNOWLEDGE } from './data/knowledge';
 import { buildAstroContext } from './lib/astro';
-import { buildUserPrompt, normalizeContent, SYSTEM_PROMPT, validateContent } from './lib/prompt';
+import { buildUserPrompt, normalizeContent, SYSTEM_PROMPT, validateContent, validateDurationFit } from './lib/prompt';
 import { retrieveChunksHybrid } from './lib/rag';
 import { generateDemoContent } from './lib/demo';
 import { callGemini, callGroq, recommendedFallback, shouldFallback } from './lib/providers';
@@ -40,7 +41,9 @@ export default function App() {
   const [tone, setTone] = useState<Tone>('duygusal');
   const [citation, setCitation] = useState<CitationMode>('yok');
   const [platform, setPlatform] = useState<'reels' | 'tiktok' | 'shorts'>('reels');
-  const [duration, setDuration] = useState<8 | 10 | 12>(10);
+  const [duration, setDuration] = useState(12);
+  const [sceneMode, setSceneMode] = useState<SceneMode>('app');
+  const [referenceNote, setReferenceNote] = useState('');
   const [angle, setAngle] = useState('');
   const [astro, setAstro] = useState(() => buildAstroContext('bugun'));
   const [result, setResult] = useState<HistoryItem | null>(null);
@@ -76,7 +79,9 @@ export default function App() {
       citationMode: citation,
       angle,
       platform,
-      duration
+      duration,
+      sceneMode,
+      referenceNote
     };
     setLoading(true);
     setError('');
@@ -121,7 +126,7 @@ export default function App() {
 
         content = normalizeContent(out.content, input, chunks);
         model = out.model;
-        const issues = validateContent(content, input);
+        const issues = [...validateContent(content, input), ...validateDurationFit(content, input)];
         if (issues.length) {
           setProgress(`Çıktı tamamlanıyor: ${issues.join(', ')}…`);
           try {
@@ -131,14 +136,14 @@ export default function App() {
             );
             content = normalizeContent(out.content, input, chunks);
             model = out.model;
-            const remaining = validateContent(content, input);
+            const remaining = [...validateContent(content, input), ...validateDurationFit(content, input)];
             if (remaining.length) {
               quality = 'kismi';
               setToast(`Bazı alanlar sınırlı kaldı: ${remaining.join(', ')}`);
             }
           } catch {
             // Tamamlama turu kotaya takılırsa ilk çıktıyı kaybetme.
-            if (validateContent(content, input).length) quality = 'kismi';
+            if ([...validateContent(content, input), ...validateDurationFit(content, input)].length) quality = 'kismi';
             setToast('Tamamlama turu tamamlanamadı; ilk çıktı gösteriliyor.');
           }
         }
@@ -169,7 +174,7 @@ export default function App() {
       setLoading(false);
       setProgress('');
     }
-  }, [sign, scope, character, tone, citation, angle, platform, duration, astro, settings]);
+  }, [sign, scope, character, tone, citation, angle, platform, duration, sceneMode, referenceNote, astro, settings]);
 
   const handleCopy = useCallback(async (text: string, label: string) => {
     try {
@@ -212,6 +217,8 @@ export default function App() {
     setAngle(item.meta.input.angle);
     setPlatform(item.meta.input.platform);
     setDuration(item.meta.input.duration);
+    setSceneMode(item.meta.input.sceneMode ?? 'app');
+    setReferenceNote(item.meta.input.referenceNote ?? '');
     setAstro(item.meta.astro);
     setHistoryOpen(false);
   }, []);
@@ -325,6 +332,10 @@ export default function App() {
                 onPlatform={setPlatform}
                 duration={duration}
                 onDuration={setDuration}
+                sceneMode={sceneMode}
+                onSceneMode={setSceneMode}
+                referenceNote={referenceNote}
+                onReferenceNote={setReferenceNote}
                 angle={angle}
                 onAngle={setAngle}
                 onGenerate={handleGenerate}

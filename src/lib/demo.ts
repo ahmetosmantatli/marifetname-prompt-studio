@@ -1,9 +1,12 @@
 import type { AstroContext, GenerateInput, GeneratedContent } from '../types';
 import { PLANETS } from '../data/planets';
 import type { RetrievedChunk } from './rag';
+import { getDurationProfile } from './duration';
+import { buildScenePlan } from './prompt';
 
 const lower = (s: string) => s.charAt(0).toLocaleLowerCase('tr-TR') + s.slice(1);
 const first = (arr: string[]) => arr[0] ?? '';
+const short = (text: string) => text.split(/[,.;]/)[0].trim();
 
 function hash(input: string): number {
   let h = 2166136261;
@@ -130,36 +133,36 @@ function buildScript(input: GenerateInput, astro: AstroContext): { hook: string;
   const lines: string[] = [];
 
   if (tone === 'duygusal') {
-    lines.push(`Senin ${lower(sign.gift)} var. Ama kimse bunun ne kadar yorucu olduğunu sormuyor.`);
-    lines.push(`${sign.shadow} dedikleri şey, aslında yaralanmış bir ${lower(sign.desire)}.`);
+    lines.push(`Senin ${lower(short(sign.gift))} var. Ama kimse bunun ne kadar yorucu olduğunu sormuyor.`);
+    lines.push(`${short(sign.shadow)} dedikleri şey, aslında yaralanmış bir ${lower(short(sign.desire))}.`);
     lines.push(`Bugün Ay ${moon.name} burcunda. ${moon.moonElection}`);
     lines.push(`${planet.name}'in tabiatı ${lower(planet.nature)}. Bu, ${first(planet.shadows)} demek değil; ${first(planet.gifts)} için verilmiş bir güç.`);
-    lines.push(`Sen ${lower(sign.desire)} istiyorsun. Ama onu ${lower(sign.shadow)} ile korumaya çalışıyorsun.`);
+    lines.push(`Sen ${lower(short(sign.desire))} istiyorsun. Ama onu ${lower(short(sign.shadow))} ile korumaya çalışıyorsun.`);
     lines.push(`Bir şeyi bırakmak, onu kaybetmek değil; yer açmak.`);
   } else if (tone === 'agresif') {
-    lines.push(`${sign.shadow} senin hikâyen değil. Alışkanlığın.`);
-    lines.push(`${sign.desire} istiyorsan, ${lower(sign.shadow)} bahanesini bırakacaksın.`);
+    lines.push(`${short(sign.shadow)} senin hikâyen değil. Alışkanlığın.`);
+    lines.push(`${short(sign.desire)} istiyorsan, ${lower(short(sign.shadow))} bahanesini bırakacaksın.`);
     lines.push(`Ay ${moon.name}'ta. ${moon.moonElection}`);
     lines.push(`${planet.name} sana ${first(planet.gifts)} veriyor. Bunu ${first(planet.shadows)} için harcama.`);
     lines.push(`Kimse seni kurtarmayacak. Ama sen kendini kurtarabilirsin.`);
     lines.push(`${sign.name}, güç yüksek ses değil; doğru anda durmayı bilmektir.`);
   } else if (tone === 'sakin') {
-    lines.push(`Bugün ${lower(sign.gift)} sana ağır geliyorsa, bu zayıflık değil.`);
-    lines.push(`${sign.shadow} yüzeye çıkıyorsa, altında bir ihtiyaç var.`);
+    lines.push(`Bugün ${lower(short(sign.gift))} sana ağır geliyorsa, bu zayıflık değil.`);
+    lines.push(`${short(sign.shadow)} yüzeye çıkıyorsa, altında bir ihtiyaç var.`);
     lines.push(`Ay ${moon.name} burcunda; ${lower(moon.moonElection)}`);
     lines.push(`${planet.name}'in ${lower(planet.nature)} tabiatı, sana acele değil, ölçü öneriyor.`);
     lines.push(`Şu an tek bir doğru adım yeter. Küçük olsun; ama senin olsun.`);
     lines.push(`Bedenini dinle. Omuzların nerede kilitlenmişse, cevap orada.`);
   } else if (tone === 'gizemli') {
-    lines.push(`Senin ${lower(sign.gift)} bir ışık; ${sign.shadow} ise o ışığın düşürdüğü gölge.`);
+    lines.push(`Senin ${lower(short(sign.gift))} bir ışık; ${short(sign.shadow)} ise o ışığın düşürdüğü gölge.`);
     lines.push(`Gölgeyi kesip atamazsın. Ama nereden geldiğini görebilirsin.`);
     lines.push(`Ay ${moon.name} burcunda. ${moon.moonElection}`);
     lines.push(`${planet.name} ${lower(planet.nature)} bir ayna tutuyor: ${first(planet.gifts)} mi, ${first(planet.shadows)} mi?`);
     lines.push(`Bugün sana fısıldanan şey, bir cevap değil; bir soru.`);
     lines.push(`Soruyu duy. Cevabı zorlamak zorunda değilsin.`);
   } else {
-    lines.push(`${sign.gift} senin elinde. ${sign.shadow} ise henüz eğitilmemiş bir güç.`);
-    lines.push(`${sign.desire} için önce ${lower(sign.shadow)} ile yüzleşeceksin.`);
+    lines.push(`${short(sign.gift)} senin elinde. ${short(sign.shadow)} ise henüz eğitilmemiş bir güç.`);
+    lines.push(`${short(sign.desire)} için önce ${lower(short(sign.shadow))} ile yüzleşeceksin.`);
     lines.push(`Ay ${moon.name} burcunda. ${moon.moonElection}`);
     lines.push(`${planet.name} ${lower(planet.nature)} tabiatıyla ${first(planet.gifts)} verir; ${first(planet.shadows)} ise onu yanlış kullanmaktır.`);
     lines.push(`Karar anı, duygu yoğunken değil; nefes döndükten sonradır.`);
@@ -216,30 +219,58 @@ export function generateDemoContent(
   chunks: RetrievedChunk[]
 ): GeneratedContent {
   const { sign, tone, character, citationMode } = input;
+  const profile = getDurationProfile(input.duration);
   const { hook, lines, closing } = buildScript(input, astro);
+  let script = [hook, ...lines].slice(0, profile.maxLines);
+  if (citationMode !== 'yok') {
+    const citationLine = lines.find((line) => line.includes('Mârifetnâme'));
+    if (citationLine) {
+      script = script.filter((line) => !line.includes('Mârifetnâme')).slice(0, Math.max(1, profile.maxLines - 1));
+      script.push(citationLine);
+    }
+  }
+  const spoken = [...script, closing];
+  const dialogue = input.duration <= 12 ? hook : spoken.join(' ');
   const planet = PLANETS[sign.planet];
   const pronoun = character === 'kadın' ? 'She' : 'He';
   const voice = TONE_VOICE[tone];
-  const setting = SETTING[sign.element];
+  const existing = input.sceneMode === 'existing';
+  const subject = existing
+    ? `The existing character from the user's Higgsfield reference${input.referenceNote.trim() ? ` (${input.referenceNote.trim()})` : ''}; keep the same face, hair, wardrobe and jewelry`
+    : characterSheet(input);
+  const setting = existing
+    ? `The existing environment from the user's Higgsfield reference${input.referenceNote.trim() ? ` (${input.referenceNote.trim()})` : ''}; do not redesign the location`
+    : `${SETTING[sign.element]}. The room feels lived-in, not theatrical; dust motes in the air, a thin curl of candle smoke`;
   const palette = PALETTE[sign.element];
   const camera = CAMERA[tone];
   const light = LIGHT[tone];
   const actionLine = action(tone, character);
+  const shot = input.duration > 30
+    ? `multi-scene sequence (${Math.ceil(input.duration / 30)} clips of ~30 seconds)`
+    : 'single continuous shot';
 
   const higgsfieldPrompt = [
-    `Vertical 9:16, ${input.duration}-second single continuous shot, direct-to-camera.`,
-    `Subject: ${characterSheet(input)}.`,
-    `Action: ${actionLine} ${pronoun} speaks Turkish with a ${TONE_EN[tone]} cadence, lips synced to the line: "${hook}"`,
-    `Setting: ${setting}. The room feels lived-in, not theatrical; dust motes in the air, a thin curl of candle smoke.`,
+    `Vertical 9:16, ${input.duration}-second ${shot}, direct-to-camera.`,
+    `Subject: ${subject}.`,
+    `Action: ${actionLine} ${pronoun} speaks Turkish with a ${TONE_EN[tone]} cadence, lips synced to the dialogue.`,
+    `Setting: ${setting}.`,
     `Camera: ${camera}. Eye-level, no cuts, slow and intentional movement.`,
     `Lighting: ${light}. Natural skin texture, no beauty filter.`,
     `Style: cinematic realism, muted ${palette} palette, subtle 35mm film grain, shallow depth of field, no fantasy elements.`,
     `Audio: quiet room tone, a very low ney drone, close-mic Turkish voice, no music drop.`,
-    `Dialogue (Turkish, lip-synced): "${hook}"`,
-    `Keep the same face, hair, wardrobe and jewelry throughout. Hand gestures must be natural and anatomically correct.`
+    `Dialogue (Turkish, lip-synced): "${dialogue}"`,
+    existing
+      ? `Keep the existing character and environment exactly as provided; do not invent a new face, outfit or location.`
+      : `Keep the same face, hair, wardrobe and jewelry throughout. Hand gestures must be natural and anatomically correct.`,
+    input.duration > 30
+      ? `Split the dialogue across ${Math.ceil(input.duration / 30)} clips; keep the same character, wardrobe and environment in every clip.`
+      : `Hand gestures must be natural and anatomically correct.`
   ].join(' ');
 
-  const bRollPrompt = `Vertical 9:16, 4-second symbolic insert, no people, no text. Macro shot of a brass astrolabe rotating slowly above aged zodiac parchment, a single candle flame reflected in the metal, dust motes drifting through a shaft of ${sign.element === 'su' ? 'moonlight' : 'warm light'}, muted ${palette} palette, shallow depth of field, cinematic realism, subtle film grain.`;
+  const bRollPrompt = existing
+    ? `Vertical 9:16, 4-second symbolic insert inside the existing environment, no people, no text. Do not introduce a new location; use the provided set's textures, light and props. Muted ${palette} palette, shallow depth of field, cinematic realism, subtle film grain.`
+    : `Vertical 9:16, 4-second symbolic insert, no people, no text. Macro shot of a brass astrolabe rotating slowly above aged zodiac parchment, a single candle flame reflected in the metal, dust motes drifting through a shaft of ${sign.element === 'su' ? 'moonlight' : 'warm light'}, muted ${palette} palette, shallow depth of field, cinematic realism, subtle film grain.`;
+
 
   const sourceNotes = citationMode === 'yok'
     ? []
@@ -256,7 +287,7 @@ export function generateDemoContent(
 
   return {
     hook,
-    script: [hook, ...lines],
+    script,
     closing,
     higgsfieldPrompt,
     bRollPrompt,
@@ -267,6 +298,7 @@ export function generateDemoContent(
     caption,
     hashtags,
     sourceNotes,
-    thumbnailText: `${sign.name}: ${sign.keyword}`
+    thumbnailText: `${sign.name}: ${sign.keyword}`,
+    scenePlan: input.duration > 30 ? buildScenePlan(script, closing, input) : []
   };
 }

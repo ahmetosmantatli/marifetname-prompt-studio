@@ -16,6 +16,8 @@ Erzurumlu İbrahim Hakkı'nın **Mârifetnâme**'sindeki burç, gezegen, Ay, miz
 
 - **12 burç profili**: unsur, modalite, yönetici gezegen, mizaç, gölge, arzu, yara, ses ve jest dili.
 - **4 zaman aralığı**: bugün, yarın, bu hafta, bu ay. Ay burcu, Ay evresi, gezegen günü/saati, mevsim ve hicri tarih otomatik hesaplanır.
+- **8-60 sn süre**: 8/12/18/24/30 sn tek klip; 40/50/60 sn çok sahneli plan. 30 sn üstünde uygulama sahne planı üretir.
+- **Sahne modu**: “Ben tarif edeyim” (karakter + ortam promptta) veya “Bende hazır” (Higgsfield’daki mevcut karakter/ortam; prompt sadece konuşma, jest ve kamera verir).
 - **5 ton**: duygusal, agresif, sakin, gizemli, otoriter. Karakter kadın veya erkek seçilebilir.
 - **RAG**: Mârifetnâme'den derlenmiş 49 bilgi kartı üzerinden BM25 + isteğe bağlı Gemini embedding ile hibrit arama.
 - **Higgsfield çıktısı**: İngilizce ana plan promptu, B-roll promptu, negatif prompt, ses yönetimi, ekran yazıları ve sosyal medya metni.
@@ -67,7 +69,33 @@ Bu proje için tipik istek **~3.000 girdi tokenı** ve **~1.000-1.500 çıktı t
 - **12 burçluk seri:** Gemini `gemini-3.1-flash-lite`; istekleri aralıklı gönder. Groq'ta aynı dakikada ikinci üretim TPM 8.000'e takılabilir.
 - **Qwen:** Çok hızlı ama ücretsiz OTPM 1.000; kısa çıktıda kullan.
 
+**Kısa ve uzun süre farkı:**
+
+- **8-12 sn:** `Video Prompt` içindeki `Dialogue` kısa hook’tur; tam 6-12 repliklik metin `Konuşma Metni` sekmesinde voiceover içindir.
+- **18-30 sn:** script süreye göre kısalır ve `Dialogue` konuşmanın tamamını taşır.
+- **40-60 sn:** tek klip yerine 2-3 sahne; `Sahne Planı` zaman aralığı, görsel yönerge ve diyalog parçalarını verir.
+
 **Eksik çıktı koruması:** Maksimum çıktı varsayılanı 4096; JSON ayrıştırma başarısız olursa bir kez sıkı JSON denemesi yapılır; `script` 8'den az, `higgsfieldPrompt` 100 kelimeden az veya zorunlu alan boşsa bir kez “tam çıktı” turu çalışır. 9:16, süre ve diyalog satırı modelden gelmezse kod tarafından eklenir.
+
+## Higgsfield süre gerçekleri
+
+Higgsfield’da tek üretim süresi modele göre değişiyor; 40-50 saniye **tek klip** olarak çoğu modelde yok:
+
+| Aralık | Tipik kullanım |
+|---|---|
+| 8-12 sn | Çoğu video modeli; tek klip |
+| 18-30 sn | Cinema Studio 4.0 / Kling 4.0; tek klip veya uzatma |
+| 40-60 sn | 2 sahne / uzatma; aynı karakter ve ortamı koruyarak birleştirme |
+| 1-10 dk | Higgsfield Explainer gibi farklı, çoğunlukla anlatım/teknik video akışı |
+
+Kaynaklar: [Cinema Studio 4.0 — 30 sn](https://www.higgsfield.company/blog/cinema-studio-4-0), [AI Long Video Generator — sahne başına 30 sn](https://www.higgsfield.company/ai-long-video-generator), [Kling 4.0 — 3-30 sn](https://www.higgsfield.company/blog/kling-4-0-on-higgsfield), [Higgsfield changelog — konuşma 30 sn](https://higgsfield.ai/creator-hub/changelog), [Explainer — 1-10 dk](https://higgsfield.ai/es/blog/ai-video-from-text-and-url).
+
+Bu yüzden uygulama 40/50/60 sn seçildiğinde:
+1. Konuşmayı süreye göre yazar,
+2. Video promptunu “multi-scene sequence” olarak kurar,
+3. **Sahne Planı** üretir: her parça için zaman aralığı, görsel yönerge ve o parçadaki diyalog.
+
+Yine de üçüncü taraf limitleri değişebilir; yükleme öncesi Higgsfield arayüzündeki güncel süre limitini kontrol et.
 
 ## Nasıl çalışır?
 

@@ -1,4 +1,5 @@
-import type { Character, CitationMode, Scope, SignProfile, Tone } from '../types';
+import type { Character, CitationMode, SceneMode, Scope, SignProfile, Tone } from '../types';
+import { DURATION_OPTIONS } from '../lib/duration';
 import { Sparkle, ArrowRight, Key } from './Icons';
 
 interface Props {
@@ -13,8 +14,12 @@ interface Props {
   onCitation: (c: CitationMode) => void;
   platform: 'reels' | 'tiktok' | 'shorts';
   onPlatform: (p: 'reels' | 'tiktok' | 'shorts') => void;
-  duration: 8 | 10 | 12;
-  onDuration: (d: 8 | 10 | 12) => void;
+  duration: number;
+  onDuration: (d: number) => void;
+  sceneMode: SceneMode;
+  onSceneMode: (m: SceneMode) => void;
+  referenceNote: string;
+  onReferenceNote: (v: string) => void;
   angle: string;
   onAngle: (v: string) => void;
   onGenerate: () => void;
@@ -90,6 +95,37 @@ export function ControlPanel(props: Props) {
       <section className="control-section">
         <div className="control-title">
           <span>03</span>
+          <h3>Sahne</h3>
+        </div>
+        <div className="segmented two">
+          <button type="button" className={props.sceneMode === 'app' ? 'is-active' : ''} onClick={() => props.onSceneMode('app')}>
+            <strong>Ben tarif edeyim</strong>
+            <small>karakter + ortam</small>
+          </button>
+          <button type="button" className={props.sceneMode === 'existing' ? 'is-active' : ''} onClick={() => props.onSceneMode('existing')}>
+            <strong>Bende hazır</strong>
+            <small>sadece konuşma</small>
+          </button>
+        </div>
+        {props.sceneMode === 'existing' && (
+          <input
+            className="ref-input"
+            value={props.referenceNote}
+            onChange={(e) => props.onReferenceNote(e.target.value)}
+            placeholder="Soul ID / @karakter / kayıtlı ortam adı (opsiyonel)"
+            maxLength={120}
+          />
+        )}
+        <p className="control-note">
+          {props.sceneMode === 'existing'
+            ? 'Karakter ve ortam Higgsfield’da hazır. Prompt yaş, saç, kıyafet ve mekânı tarif etmez; sadece konuşma, jest ve kamerayı verir.'
+            : 'Prompt karakteri, kıyafeti ve ortamı sıfırdan tarif eder.'}
+        </p>
+      </section>
+
+      <section className="control-section">
+        <div className="control-title">
+          <span>04</span>
           <h3>Ton</h3>
         </div>
         <div className="tone-grid">
@@ -110,7 +146,7 @@ export function ControlPanel(props: Props) {
       <section className="control-section two-col">
         <div>
           <div className="control-title compact">
-            <span>04</span>
+            <span>05</span>
             <h3>Atıf</h3>
           </div>
           <div className="select-wrap">
@@ -121,7 +157,7 @@ export function ControlPanel(props: Props) {
         </div>
         <div>
           <div className="control-title compact">
-            <span>05</span>
+            <span>06</span>
             <h3>Format</h3>
           </div>
           <div className="inline-fields">
@@ -130,18 +166,21 @@ export function ControlPanel(props: Props) {
               <option value="tiktok">TikTok</option>
               <option value="shorts">Shorts</option>
             </select>
-            <select value={props.duration} onChange={(e) => props.onDuration(Number(e.target.value) as Props['duration'])}>
-              <option value={8}>8 sn</option>
-              <option value={10}>10 sn</option>
-              <option value={12}>12 sn</option>
+            <select value={props.duration} onChange={(e) => props.onDuration(Number(e.target.value))}>
+              {DURATION_OPTIONS.map((d) => (
+                <option key={d.seconds} value={d.seconds}>{d.label} — {d.note}</option>
+              ))}
             </select>
           </div>
+          {props.duration > 30 && (
+            <p className="duration-warning">30 sn üstü tek klip değil: Higgsfield’da 2 sahne/uzatma gerekir. Prompt sahne planını da üretir.</p>
+          )}
         </div>
       </section>
 
       <section className="control-section">
         <div className="control-title">
-          <span>06</span>
+          <span>07</span>
           <h3>Ek açı <em>(opsiyonel)</em></h3>
         </div>
         <textarea

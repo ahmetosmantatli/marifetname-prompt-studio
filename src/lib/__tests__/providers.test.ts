@@ -16,7 +16,9 @@ const input: GenerateInput = {
   citationMode: 'guclu',
   angle: 'yol ve anlam arayışı',
   platform: 'tiktok',
-  duration: 12
+  duration: 12,
+  sceneMode: 'app',
+  referenceNote: ''
 };
 
 const settings: Settings = {

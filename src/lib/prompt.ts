@@ -1,4 +1,5 @@
-import type { AstroContext, CitationMode, GenerateInput, GeneratedContent, KnowledgeChunk, Settings } from '../types';
+import type { AstroContext, CitationMode, GenerateInput, GeneratedContent, KnowledgeChunk, ScenePart, Settings } from '../types';
+import { getDurationProfile } from './duration';
 import { PLANETS } from '../data/planets';
 import type { RetrievedChunk } from './rag';
 
@@ -15,8 +16,9 @@ SENARYO KURALLARI
 - Burcun gölgesini ve arzusunu somut bir insan sahnesiyle anlat; genel geçer burç cümleleri kurma.
 - Günün/ayın bağlamını (Ay burcu, gezegen günü, mevsim) doğal biçimde metne dokundur; ansiklopedik bilgi verme.
 - ZAMAN BAĞLAMI: Seçilen burç ile Ay burcunu asla karıştırma. Ay burcu ayrı bir gökcismi bağlamıdır; metinde Ay'dan söz edeceksen yalnızca verilen gerçek Ay burcunu söyle. Günün gezegeni ve gezegen saatini aynen kullan; olmayan bir gezegen saatini uydurma.
+- SAHNE MODU: Kullanıcı "mevcut" sahne modunu seçtiyse karakterin yaşını, saçını, kıyafetini, mekânı ve dekoru TARİF ETME; yalnızca mevcut karakter/ortam referansı, aksiyon, jest, kamera, ışık, ses ve diyalog yaz. "app" modunda karakteri ve ortamı tam tarif et.
 - Türkçe ek uyumuna dikkat et: "Ay İkizler'da" değil "Ay İkizler burcunda" gibi doğal bir ifade kullan.
-- TAMAMLIK: JSON'daki hiçbir alanı boş bırakma. script 8-12 replik, higgsfieldPrompt 120-180 kelime, caption ve sourceNotes dolu olsun.
+- TAMAMLIK: JSON'daki hiçbir alanı boş bırakma. Kullanıcı promptundaki SÜRE PROFİLİ'ne uy: script replik sayısı ve Dialogue kelime sayısı seçilen süreye sığsın. higgsfieldPrompt yeterli detayda olsun; caption ve sourceNotes dolu olsun.
 - İslami çerçeve: tevekkül, niyet, sabır, şükür, kalbi temiz tutma gibi kavramları doğal kullan. Her replikte dini ifade kullanma; 1-2 yerde yeterli.
 - Kuran ayeti veya hadis uydurma. Verilen kaynaklarda geçmeyen dini bir metni alıntılama. Dinî hüküm/fetva verme.
 - Kesin kehanet yok: "kesin olacak", "ölüm", "hastalık", "kaza", "boşanma", "hamilelik", "zengin olacaksın" gibi ifadeler kullanma. "Kesin" yerine "eğilim", "davet", "fırsat", "imtihan" gibi dil kullan.
@@ -31,9 +33,10 @@ ATIF KURALLARI
 - Kaynak pasajlarında olmayan bir cümleyi "Mârifetnâme'de yazıyor" diye sunma.
 
 HIGGSFIELD PROMPT KURALLARI
-- İngilizce yaz, 120-180 kelime arasında tut.
+- İngilizce yaz. "app" sahne modunda 120-180 kelime; "mevcut" sahne modunda 80-140 kelime tut.
 - Dikey 9:16, 8-12 saniye, tek kesintisiz plan, doğrudan kameraya konuşan tek karakter.
-- Şu sırayı koru: Subject → Action → Setting → Camera → Lighting → Style → Audio → Dialogue.
+- Şu sırayı koru: Subject → Action → Setting → Camera → Lighting → Style → Audio → Dialogue. "Mevcut" modda Subject ve Setting yalnızca referans cümlesi olsun; görünüm/mekân tarifi yapma.
+- Dialogue satırı, script'in tamamını içersin ve seçilen süreye sığsın. 30 saniye üstünde videoyu tek klip gibi değil, çok sahneli/uzatmalı bir sekans olarak tarif et.
 - Somut ve çekilebilir ol: yaş aralığı, saç, ten, kıyafet, jest, bakış, ışık yönü, lens, kamera hareketi, ortam sesi belirt.
 - Kamera hareketini adıyla söyle: "slow dolly-in", "static medium close-up", "subtle handheld push-in" gibi.
 - Yüz kimliğinin tutarlı kalmasını, jestlerin doğal olmasını, dudak senkronunun Türkçe repliğe uymasını iste.
@@ -71,6 +74,13 @@ export function buildUserPrompt(
 ): string {
   const { sign } = input;
   const planet = PLANETS[sign.planet];
+  const duration = getDurationProfile(input.duration);
+  const shortVideo = input.duration <= 12;
+  const scriptMin = shortVideo ? 6 : duration.minLines;
+  const scriptMax = shortVideo ? 12 : duration.maxLines;
+  const dialogueRule = shortVideo
+    ? 'Dialogue: KISA hook, en fazla 25-30 kelime. Tam script voiceover içindir; Dialogue alanına tamamını koyma.'
+    : `Dialogue: script'in tamamı; ${input.duration} saniyeye sığacak şekilde.`;
   const moonLine = astro.moonSigns.map((s) => s.name).join(' → ');
   const sourceLines = chunks
     .map((r, i) => `[M${i + 1}] s. ${r.chunk.page} — ${r.chunk.title}\n${r.chunk.text}${r.chunk.quote ? `\nKısa alıntı: "${r.chunk.quote}"` : ''}`)
@@ -83,9 +93,22 @@ Karakter: ${input.character}
 Ton: ${input.tone}
 Atıf modu: ${input.citationMode}
 Platform: ${input.platform} (dikey 9:16)
-Süre: ${input.duration} saniye
+Süre: ${input.duration} saniye (${duration.label} · ${duration.note})
 İzleyici: 25-45 yaş, manevi hassasiyeti olan, burç içeriğini "kendini tanıma" diliyle tüketen kitle.
 Ek açı: ${input.angle.trim() || 'Yok'}
+
+SÜRE PROFİLİ
+- script: ${scriptMin}-${scriptMax} replik${shortVideo ? ' (tam seslendirme metni; 12 sn videodan daha uzun olabilir)' : `, toplam yaklaşık ${duration.words} kelime`}.
+- ${dialogueRule}
+- ${duration.singleClip ? 'Tek klip olarak üretilebilir.' : 'Tek klip değil; 2 sahne/uzatma gerekir. Promptu multi-scene sequence olarak yaz.'}
+
+SAHNE MODU: ${input.sceneMode === 'existing' ? 'MEVCUT KARAKTER/ORTAM (kullanıcıda hazır)' : 'APP TARİF EDECEK'}
+${input.sceneMode === 'existing'
+  ? `- Karakterin yaşı, saçı, teni, kıyafeti, mekânı ve dekoru TARİF ETME.
+- "the existing character" ve "the existing environment" referanslarını kullan.
+- Sadece aksiyon, jest, bakış, kamera, ışık, ses ve diyalog yaz.
+- Referans: ${input.referenceNote.trim() || 'kullanıcının Higgsfield karakteri/ortamı'}`
+  : '- Karakteri, kıyafeti, ortamı ve dekoru tam tarif et.'}
 
 GÖK TAKVİMİ BAĞLAMI (Mârifetnâme'nin tasnifine göre — AYNEN KULLAN)
 Tarih: ${astro.dateLabel} (${astro.hijri})
@@ -127,10 +150,10 @@ GÖREV
 1) ${sign.name} karakterinin ağzından, ${input.character} bir oyuncunun kameraya konuştuğu ${astro.scopeLabel.toLocaleLowerCase('tr-TR')} videosunun senaryosunu yaz.
 2) Senaryoyu ${input.tone} tonda, ${sign.voice} sesiyle kur. ${input.angle.trim() ? `Ek açıyı ("${input.angle.trim()}") mutlaka kullan.` : ''}
 3) ${citationLine(input.citationMode)}
-4) Higgsfield için İngilizce, 120-180 kelimelik, tek planlı video promptunu yaz. Karakter: ${input.character}, yaş 28-38, Türk/Orta Doğu yüz hatları, doğal ten, abartısız makyaj. Ortam: Osmanlı-İslam astronomi çalışma odası; eski burç haritaları, pirinç usturlap, İznik çini detayı, kemerli pencere. Kamera ve ışığı tona göre ayarla.
-5) JSON'u eksiksiz doldur. "script" dizisi hook dahil 8-12 replik olsun (tam seslendirme); "closing" ayrı kalsın. higgsfieldPrompt içindeki Dialogue satırı en fazla 25-30 kelime olsun ve tam script'i oraya koyma. "sourceNotes" yalnızca atıf modu "yok" değilse dolu olsun; her notta sayfa numarası bulunsun.
+4) Higgsfield için İngilizce video promptunu yaz. ${input.sceneMode === 'existing' ? 'Karakter ve ortam kullanıcıda hazır; yaş, saç, kıyafet, mekân ve dekor TARİF ETME. "the existing character" ve "the existing environment" referanslarını kullan; sadece aksiyon, jest, kamera, ışık, ses ve diyalog yaz. 80-140 kelime.' : 'Karakter: ${input.character}, yaş 28-38, Türk/Orta Doğu yüz hatları, doğal ten, abartısız makyaj. Ortam: Osmanlı-İslam astronomi çalışma odası; eski burç haritaları, pirinç usturlap, İznik çini detayı, kemerli pencere. 120-180 kelime.'} Kamera ve ışığı tona göre ayarla. ${input.duration > 30 ? 'Süre 30 sn üstü: multi-scene sequence olarak yaz; diyaloğu sahnelere böl.' : ''}
+5) JSON'u eksiksiz doldur. "script" dizisi hook dahil ${scriptMin}-${scriptMax} replik olsun; "closing" ayrı kalsın. ${dialogueRule} "sourceNotes" yalnızca atıf modu "yok" değilse dolu olsun; her notta sayfa numarası bulunsun.
 6) Hiçbir dini metin uydurma; hiçbir kesin kehanet kurma.
-7) YAZMADAN ÖNCE KONTROL ET: Seçilen burç ${sign.name} mi? Ay burcu ${astro.primaryMoonSign.name} burcunda olarak mı geçiyor? Günün gezegeni ${astro.planetaryDay} mi? script 8-12 replik mi? higgsfieldPrompt 120-180 kelime mi? Dialogue 25-30 kelime mi? Tüm JSON alanları dolu mu? Değilse düzelt, sonra JSON'u kapat.`;
+7) YAZMADAN ÖNCE KONTROL ET: Seçilen burç ${sign.name} mi? Ay burcu ${astro.primaryMoonSign.name} burcunda olarak mı geçiyor? Günün gezegeni ${astro.planetaryDay} mi? script ${scriptMin}-${scriptMax} replik mi? higgsfieldPrompt yeterli detayda mı? Dialogue kuralına uyuldu mu? Tüm JSON alanları dolu mu? Değilse düzelt, sonra JSON'u kapat.`;
 }
 
 function asString(v: unknown, fallback = ''): string {
@@ -141,6 +164,39 @@ function asStringArray(v: unknown, fallback: string[] = []): string[] {
   if (Array.isArray(v)) return v.filter((x): x is string => typeof x === 'string' && x.trim().length > 0).map((x) => x.trim());
   if (typeof v === 'string' && v.trim()) return v.split('\n').map((x) => x.trim()).filter(Boolean);
   return fallback;
+}
+
+function asScenePlan(v: unknown): ScenePart[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      const obj = item as Record<string, unknown>;
+      const range = typeof obj.range === 'string' ? obj.range : '';
+      const visual = typeof obj.visual === 'string' ? obj.visual : '';
+      const dialogue = typeof obj.dialogue === 'string' ? obj.dialogue : '';
+      return range && dialogue ? { range, visual, dialogue } : null;
+    })
+    .filter((x): x is ScenePart => Boolean(x));
+}
+
+export function buildScenePlan(script: string[], closing: string, input: GenerateInput): ScenePart[] {
+  if (input.duration <= 30) return [];
+  const parts = Math.ceil(input.duration / 30);
+  const partLength = Math.ceil(input.duration / parts);
+  const all = [...script, closing].filter(Boolean);
+  const per = Math.max(1, Math.ceil(all.length / parts));
+  return Array.from({ length: parts }).map((_, i) => {
+    const start = i * partLength;
+    const end = Math.min(input.duration, (i + 1) * partLength);
+    return {
+      range: `${start}-${end} sn`,
+      visual: i === 0
+        ? 'Aynı karakter ve ortam; medium close-up, yavaş dolly-in. İlk klip.'
+        : 'Aynı karakter, kıyafet ve ortam; yeni açı (yan profil veya geniş plan), yavaş push-in.',
+      dialogue: all.slice(i * per, (i + 1) * per).join(' ')
+    };
+  });
 }
 
 export function parseModelJson(raw: string): Partial<GeneratedContent> {
@@ -172,19 +228,21 @@ export function parseModelJson(raw: string): Partial<GeneratedContent> {
     caption: asString(pick('caption', 'aciklama', 'açıklama')),
     hashtags: asStringArray(pick('hashtags', 'etiketler')),
     sourceNotes: asStringArray(pick('sourceNotes', 'source_notes', 'kaynakNotlari')),
-    thumbnailText: asString(pick('thumbnailText', 'thumbnail_text', 'kapakYazisi'))
+    thumbnailText: asString(pick('thumbnailText', 'thumbnail_text', 'kapakYazisi')),
+    scenePlan: asScenePlan(pick('scenePlan', 'scene_plan', 'sahnePlani'))
   };
 }
 
-export function enforceHiggsfieldPrompt(prompt: string, hook: string, duration: number): string {
+export function enforceHiggsfieldPrompt(prompt: string, dialogue: string, duration: number): string {
   if (!prompt.trim()) return '';
   let p = prompt.trim();
   const hasVertical = /(9\s*:\s*16|vertical)/i.test(p);
   const hasDuration = /\b\d{1,2}\s*(?:-| )\s*(?:second|seconds|sec|sn)\b/i.test(p) || /\b\d{1,2}\s*saniye\b/i.test(p);
   if (!hasVertical) {
-    p = `Vertical 9:16, ${duration}-second single continuous shot, direct-to-camera. ${p}`;
+    const shot = duration > 30 ? `multi-scene sequence (${Math.ceil(duration / 30)} clips of ~30 seconds)` : 'single continuous shot';
+    p = `Vertical 9:16, ${duration}-second ${shot}, direct-to-camera. ${p}`;
   } else if (!hasDuration) {
-    p += ` Duration: ${duration} seconds, single continuous shot.`;
+    p += ` Duration: ${duration} seconds, ${duration > 30 ? 'multi-scene sequence' : 'single continuous shot'}.`;
   }
   if (!/direct[- ]to[- ]camera|to camera/i.test(p)) {
     p += ' The character speaks directly to camera.';
@@ -196,17 +254,27 @@ export function enforceHiggsfieldPrompt(prompt: string, hook: string, duration: 
   p = p.replace(/\bSpoken line\b[^.\n]*\.?\s*/gi, ' ');
   p = p.replace(/slight accent/gi, 'native Turkish, Istanbul accent');
   p = p.replace(/\s+/g, ' ').trim();
-  p += ` Dialogue (Turkish, lip-synced): "${hook}"`;
+  p += ` Dialogue (Turkish, lip-synced): "${dialogue.replace(/"/g, '\\"')}"`;
   return p;
+}
+
+export function validateDurationFit(content: GeneratedContent, input: GenerateInput): string[] {
+  if (input.duration <= 12) return [];
+  const profile = getDurationProfile(input.duration);
+  const words = `${content.script.join(' ')} ${content.closing}`.trim().split(/\s+/).filter(Boolean).length;
+  const max = Math.round(profile.words * 1.35);
+  return words > max ? [`konuşma ${words}/${max} kelime (${profile.label})`] : [];
 }
 
 export function validateContent(content: GeneratedContent, input: GenerateInput): string[] {
   const issues: string[] = [];
   if (!content.hook || content.hook.trim().length < 12) issues.push('hook eksik/kısa');
-  if (content.script.length < 8) issues.push(`script ${content.script.length}/8 replik`);
+  const minLines = input.duration <= 12 ? 6 : getDurationProfile(input.duration).minLines;
+  if (content.script.length < minLines) issues.push(`script ${content.script.length}/${minLines} replik`);
   if (!content.closing.trim()) issues.push('closing eksik');
   const hfWords = content.higgsfieldPrompt.trim().split(/\s+/).filter(Boolean).length;
-  if (hfWords < 100) issues.push(`higgsfieldPrompt ${hfWords}/120 kelime`);
+  const minHf = input.sceneMode === 'existing' ? 70 : 100;
+  if (hfWords < minHf) issues.push(`higgsfieldPrompt ${hfWords}/${minHf} kelime`);
   if (!content.caption.trim()) issues.push('caption eksik');
   if (!content.onScreenText.length) issues.push('onScreenText eksik');
   if (input.citationMode !== 'yok' && content.sourceNotes.length === 0) issues.push('sourceNotes eksik');
@@ -218,11 +286,16 @@ export function normalizeContent(partial: Partial<GeneratedContent>, input: Gene
   // Parantez içi sahne notları seslendirilmemeli; script'i konuşulacak kelimelere indir.
   const script = rawScript.map((line) => line.replace(/\s*\([^)]*\)/g, '').trim()).filter(Boolean);
   const fallbackSources = input.citationMode === 'yok' ? [] : chunks.slice(0, 3).map((r) => `${r.chunk.title} (s. ${r.chunk.page})`);
+  const closing = partial.closing || 'Nefes al. Niyetini Allah’a bırak; adımını sen at.';
   return {
     hook: partial.hook || script[0] || `${input.sign.name}, bugün bir şeyi bırakmanın vakti.`,
     script,
-    closing: partial.closing || 'Nefes al. Niyetini Allah’a bırak; adımını sen at.',
-    higgsfieldPrompt: enforceHiggsfieldPrompt(partial.higgsfieldPrompt || '', partial.hook || script[0] || input.sign.name, input.duration),
+    closing,
+    higgsfieldPrompt: enforceHiggsfieldPrompt(
+      partial.higgsfieldPrompt || '',
+      input.duration <= 12 ? (partial.hook || script[0] || input.sign.name) : script.join(' '),
+      input.duration
+    ),
     bRollPrompt: partial.bRollPrompt || '',
     negativePrompt: partial.negativePrompt || 'No on-screen text, no extra fingers, no face morphing, no jump cuts, no celebrity likeness, no neon, no fantasy armor.',
     voiceDirection: partial.voiceDirection || 'Yakın mikrofon, alçak tempolu, nefes duyulacak kadar samimi; son cümlede sesi bir ton düşür.',
@@ -230,7 +303,8 @@ export function normalizeContent(partial: Partial<GeneratedContent>, input: Gene
     caption: partial.caption || `${input.sign.name} için ${input.sign.keyword.toLocaleLowerCase('tr-TR')} notu. ${input.sign.islamic}`,
     hashtags: partial.hashtags?.length ? partial.hashtags : ['#marifetname', '#burç', '#islami', '#kişisel gelişim', '#astroloji'],
     sourceNotes: partial.sourceNotes?.length ? partial.sourceNotes : fallbackSources,
-    thumbnailText: partial.thumbnailText || `${input.sign.name}: ${input.sign.keyword}`
+    thumbnailText: partial.thumbnailText || `${input.sign.name}: ${input.sign.keyword}`,
+    scenePlan: partial.scenePlan?.length ? partial.scenePlan : buildScenePlan(script, closing, input)
   };
 }
 

@@ -315,6 +315,13 @@ select:focus, input:focus, textarea:focus { border-color: rgba(201,164,92,.55) !
   padding: 0;
 }
 .provider-line:hover { color: var(--gold-2); }
+
+.ref-input { width: 100%; margin-top: 7px; background: #0a0f1b; border: 1px solid var(--line-soft); color: var(--ink); padding: 8px 9px; border-radius: 2px; font-size: 10px; outline: none; }
+.ref-input::placeholder { color: var(--faint); }
+.control-note { margin: 7px 0 0; font-size: 8px; line-height: 1.55; color: var(--faint); }
+.duration-warning { margin: 6px 0 0; font-size: 8px; line-height: 1.5; color: var(--gold-2); }
+.scene-badge { border: 1px solid rgba(201,164,92,.35); color: var(--gold-2); padding: 2px 5px; border-radius: 2px; font-size: 7px; letter-spacing: .08em; }
+
 .privacy-note { margin: -6px 0 0; text-align: center; font-size: 8px; color: var(--faint); line-height: 1.5; }
 
 /* Result */
@@ -400,6 +407,17 @@ select:focus, input:focus, textarea:focus { border-color: rgba(201,164,92,.55) !
 .usage-callout p { margin: 4px 0 0; font-size: 9.5px; line-height: 1.6; color: var(--muted); }
 .usage-callout code { font-family: var(--font-mono); color: var(--ink-soft); font-size: 9px; }
 .usage-callout b { color: var(--ink-soft); font-weight: 600; }
+
+
+.scene-plan { border: 1px solid var(--line); background: rgba(201,164,92,.035); padding: 12px 13px; margin-bottom: 12px; }
+.scene-plan-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px; margin-bottom: 9px; }
+.scene-plan-head > span:last-child { font-size: 8px; color: var(--faint); }
+.scene-part { border-top: 1px solid var(--line-soft); padding: 9px 0; }
+.scene-part:first-of-type { border-top: 0; padding-top: 0; }
+.scene-part-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.scene-range { font-family: var(--font-mono); font-size: 9px; color: var(--gold); }
+.scene-visual { margin: 4px 0 0; font-size: 9px; line-height: 1.55; color: var(--muted); }
+.scene-dialogue { margin: 5px 0 0; font-size: 10px; line-height: 1.6; color: var(--ink-soft); }
 
 .mini-note { border-left: 2px solid var(--gold); background: rgba(201,164,92,.045); padding: 10px 12px; font-size: 9.5px; line-height: 1.65; color: var(--muted); }
 .mini-note strong { color: var(--gold-2); font-weight: 600; }

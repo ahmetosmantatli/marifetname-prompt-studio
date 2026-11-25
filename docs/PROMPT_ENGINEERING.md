@@ -86,6 +86,34 @@ Negatif prompt: ekran yazısı, logo, filigran, fazla parmak, yüz bozulması, p
 
 `src/lib/prompt.ts` içindeki `parseModelJson` kod bloğu, fence, Türkçe anahtar ve eksik alan toleransı sağlar. `normalizeContent` boş alanları güvenli varsayılanlarla doldurur.
 
+## Süre ve sahne modu
+
+### Süre profili
+
+`src/lib/duration.ts` süreye göre replik ve kelime hedefi tutar:
+
+- 8 sn: 3-4 replik, ~24 kelime
+- 12 sn: 4-6 replik, ~36 kelime (kısa video; tam metin ayrı voiceover)
+- 18 sn: 5-7 replik, ~55 kelime
+- 24 sn: 7-9 replik, ~80 kelime
+- 30 sn: 8-10 replik, ~85 kelime
+- 40 sn: 10-12 replik, ~110 kelime
+- 50 sn: 12-14 replik, ~135 kelime
+- 60 sn: 14-16 replik, ~160 kelime
+
+12 sn ve altında `script` tam voiceover metni olarak uzun kalabilir; `higgsfieldPrompt` içindeki `Dialogue` kısa hook’tur. 18 sn ve üstünde script süreye göre kısaltılır ve `Dialogue` tam metni taşır. 30 sn üstünde `scenePlan` 2-3 parçaya bölünür.
+
+### Sahne modu
+
+- `app`: uygulama karakteri, kıyafeti ve ortamı tarif eder.
+- `existing`: kullanıcı Higgsfield’da kendi karakterini/ortamını kullanır. Prompt yaş, saç, kıyafet, mekân tarif etmez; yalnızca mevcut referans, aksiyon, jest, kamera, ışık, ses ve diyalog verir.
+
+### Higgsfield gerçekleri
+
+- Cinema Studio 4.0 / Kling 4.0: tek klip **30 sn**.
+- 40-60 sn: 2 sahne/uzatma; tek üretimde konuşma 30 sn ile sınırlı olabilir.
+- Explainer gibi araçlar 1-10 dk üretebilir; bu, konuşan karakter formatından farklıdır.
+
 ## Zaman bağlamı koruması
 
 Modeller ilk testlerde seçilen burç ile Ay burcunu karıştırdı (ör. Yay karakteri için “Ay Yay'da” yazdı). Bunu önlemek için:

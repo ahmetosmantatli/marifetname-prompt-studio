@@ -188,6 +188,9 @@ export function ResultView(props: Props) {
               <span>{meta.input.character} karakter</span>
               <span>·</span>
               <span>{meta.input.tone}</span>
+              <span>·</span>
+              <span>{meta.input.duration} sn</span>
+              {meta.input.sceneMode === 'existing' && <span className="scene-badge">MEVCUT KARAKTER</span>}
               <span className={`quality-badge${meta.quality === 'kismi' ? ' warn' : ''}`}>{meta.quality === 'kismi' ? 'KISMİ ÇIKTI' : 'TAM ÇIKTI'}</span>
             </div>
           </div>
@@ -220,16 +223,38 @@ export function ResultView(props: Props) {
         <div className="tab-body">
           <div className="usage-callout">
             <strong>Higgsfield’a bu promptu yapıştır.</strong>
-            <p>Ana plan promptu; 9:16, tek plan ve kısa <code>Dialogue</code> satırını içerir. 8-12 repliklik tam metin <b>Konuşma Metni</b> sekmesindedir; onu video promptuna tamamıyla yapıştırma, seslendirme/altyazı için kullan.</p>
+            <p>{meta.input.duration <= 12
+              ? `${meta.input.duration} saniyelik video için Dialogue kısa bir hook içerir. Tam 6-12 repliklik metin Konuşma Metni sekmesindedir; onu voiceover/altyazı için kullan.`
+              : `${meta.input.duration} saniyeye göre yazıldı; Dialogue konuşmanın tamamını içerir. Higgsfield’da ayrı ses/diyalog alanı varsa yalnızca Dialogue satırını ver.`}</p>
           </div>
           <PromptBlock title="Higgsfield · Ana Plan" kicker="9:16 · tek plan · lip-sync" text={content.higgsfieldPrompt} onCopy={props.onCopy} copied={props.copied} />
+          {content.scenePlan && content.scenePlan.length > 0 && (
+            <div className="scene-plan">
+              <div className="scene-plan-head">
+                <span className="eyebrow">SAHNE PLANI · {meta.input.duration} SN</span>
+                <span>Her sahne için aynı ana promptu kullan; dialogue’u buradan al.</span>
+              </div>
+              {content.scenePlan.map((part, i) => (
+                <div className="scene-part" key={`${part.range}-${i}`}>
+                  <div className="scene-part-top">
+                    <span className="scene-range">{part.range}</span>
+                    <button type="button" className="copy-btn" onClick={() => props.onCopy(`${part.range}\n${part.visual}\n${part.dialogue}`, `Sahne ${i + 1}`)}>Kopyala</button>
+                  </div>
+                  <p className="scene-visual">{part.visual}</p>
+                  <p className="scene-dialogue">{part.dialogue}</p>
+                </div>
+              ))}
+            </div>
+          )}
           <PromptBlock title="B-roll · Ara Plan" kicker="4 sn · sembolik kesme" text={content.bRollPrompt} onCopy={props.onCopy} copied={props.copied} tone="light" />
           <div className="prompt-two-col">
             <PromptBlock title="Negatif Prompt" text={content.negativePrompt} onCopy={props.onCopy} copied={props.copied} tone="light" />
             <PromptBlock title="Ses Yönetimi" text={content.voiceDirection} onCopy={props.onCopy} copied={props.copied} tone="light" />
           </div>
           <div className="mini-note">
-            <strong>Higgsfield ipucu:</strong> Ana plan promptunu 8-12 saniyelik tek çekim olarak kullan; sesi ayrı yükle. Ekran yazılarını post-prodüksiyonda {content.onScreenText.join(' · ')} olarak yerleştir.
+            <strong>Higgsfield ipucu:</strong> {meta.input.duration > 30
+              ? `Bu süre tek klip değil; 2 sahne/uzatma kullan. Aynı promptu her klip için tekrarla ve Dialogue’u sahnelere böl.`
+              : `Ana plan promptunu ${meta.input.duration} saniyelik tek çekim olarak kullan; sesi ayrı yükle.`} Ekran yazılarını post-prodüksiyonda {content.onScreenText.join(' · ')} olarak yerleştir.
           </div>
         </div>
       )}
@@ -237,8 +262,10 @@ export function ResultView(props: Props) {
       {tab === 'script' && (
         <div className="tab-body">
           <div className="usage-callout">
-            <strong>Bu tam seslendirme metnidir.</strong>
-            <p>12 saniyelik videoya tamamını sığdırma. Videoda söylenecek kısa replik <b>Video Prompt</b> içindeki <code>Dialogue</code> satırıdır. Bu metni ayrı voiceover, altyazı veya daha uzun bir kesitte kullan.</p>
+            <strong>Bu, videonun konuşma metnidir.</strong>
+            <p>{meta.input.duration <= 12
+              ? `Bu, 12 saniyelik videodan daha uzun bir voiceover metnidir. Videoda söylenecek kısa replik Video Prompt içindeki Dialogue satırıdır.`
+              : `Seçilen ${meta.input.duration} saniyeye göre yazıldı; aynı metin Video Prompt içindeki Dialogue satırında da var.`} Seslendirme, altyazı veya ayrı kayıt için buradan kopyala.</p>
           </div>
           <div className="hook-card">
             <span className="hook-label">HOOK · 0-3 sn</span>
