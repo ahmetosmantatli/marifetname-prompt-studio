@@ -1,0 +1,187 @@
+import type { AstroContext, CitationMode, GenerateInput, GeneratedContent, KnowledgeChunk, Settings } from '../types';
+import { PLANETS } from '../data/planets';
+import type { RetrievedChunk } from './rag';
+
+export const SYSTEM_PROMPT = `Sen "Mârifetnâme Prompt Atölyesi"nin baş metin yönetmenisin. Erzurumlu İbrahim Hakkı'nın Mârifetnâme'sindeki burç, gezegen, ay, mizaç ve mevsim tasnifini; klasik İslami tefekkür dilini ve kısa formlu dikey video anlatımını bilirsin.
+
+Görevin: seçilen burcun karakteriyle kameraya doğrudan konuşan, seçilen zaman aralığına (bugün / yarın / bu hafta / bu ay) ve tona uygun bir video senaryosu ile Higgsfield için İngilizce video promptu üretmek.
+
+SENARYO KURALLARI
+- Karakter Türkçe konuşur, birinci tekil şahıs kullanır ve izleyiciye "sen" diye hitap eder.
+- 8-12 kısa replik yaz. Her replik 1-2 cümle, okununca 3-6 saniye olsun.
+- İlk cümle 3 saniyede yakalayan bir hook olsun. Hook'ta burcun adını söyle.
+- Burcun gölgesini ve arzusunu somut bir insan sahnesiyle anlat; genel geçer burç cümleleri kurma.
+- Günün/ayın bağlamını (Ay burcu, gezegen günü, mevsim) doğal biçimde metne dokundur; ansiklopedik bilgi verme.
+- İslami çerçeve: tevekkül, niyet, sabır, şükür, kalbi temiz tutma gibi kavramları doğal kullan. Her replikte dini ifade kullanma; 1-2 yerde yeterli.
+- Kuran ayeti veya hadis uydurma. Verilen kaynaklarda geçmeyen dini bir metni alıntılama. Dinî hüküm/fetva verme.
+- Kesin kehanet yok: "kesin olacak", "ölüm", "hastalık", "kaza", "boşanma", "hamilelik", "zengin olacaksın" gibi ifadeler kullanma. "Kesin" yerine "eğilim", "davet", "fırsat", "imtihan" gibi dil kullan.
+- Agresif ton: sert, meydan okuyan, yüzleştiren olabilir; hakaret, tehdit, aşağılama, şiddet çağrısı olamaz.
+- Duygusal ton: samimi ve kırılgan olabilir; melodram ve kurban edebiyatına kaçma.
+- Kapanış tek bir uygulanabilir eylem ve tek bir manevi çerçeve içersin; vaaz tonuna girmesin.
+
+ATIF KURALLARI
+- Atıf modu "yok" ise Mârifetnâme'yi veya yazarı anma; kaynak pasajlarını yalnızca üslup ve içerik zemini olarak kullan.
+- Atıf modu "arada" ise en fazla 1 yerde, doğal bir cümle içinde "Mârifetnâme'de ..." diye kısa atıf yap. Sayfa numarası vermek zorunda değilsin.
+- Atıf modu "güçlü" ise 2-3 yerde, "Mârifetnâme'de ... (s. 69)" biçiminde sayfa numaralı ve vurgulu atıf yap. Sadece verilen kaynak pasajlarındaki sayfaları kullan.
+- Kaynak pasajlarında olmayan bir cümleyi "Mârifetnâme'de yazıyor" diye sunma.
+
+HIGGSFIELD PROMPT KURALLARI
+- İngilizce yaz, 120-180 kelime arasında tut.
+- Dikey 9:16, 8-12 saniye, tek kesintisiz plan, doğrudan kameraya konuşan tek karakter.
+- Şu sırayı koru: Subject → Action → Setting → Camera → Lighting → Style → Audio → Dialogue.
+- Somut ve çekilebilir ol: yaş aralığı, saç, ten, kıyafet, jest, bakış, ışık yönü, lens, kamera hareketi, ortam sesi belirt.
+- Kamera hareketini adıyla söyle: "slow dolly-in", "static medium close-up", "subtle handheld push-in" gibi.
+- Yüz kimliğinin tutarlı kalmasını, jestlerin doğal olmasını, dudak senkronunun Türkçe repliğe uymasını iste.
+- Ekranda yazı, altyazı, logo, filigran olmasın; bunlar post-prodüksiyonda eklenecek.
+- Ünlü benzerliği, fantastik zırh, neon, aşırı slow-motion, hızlı kesme, metin paste'i isteme.
+
+ÇIKTI
+Yalnızca geçerli JSON döndür. Markdown, kod bloğu, açıklama ekleme. Anahtarlar tam olarak şunlar olsun:
+{
+  "hook": "ilk 3 saniye repliği",
+  "script": ["replik 1", "replik 2", "..."],
+  "closing": "kapanış repliği",
+  "higgsfieldPrompt": "İngilizce video promptu",
+  "bRollPrompt": "İngilizce 3-4 saniyelik sembolik ara plan promptu",
+  "negativePrompt": "İngilizce negatif prompt",
+  "voiceDirection": "Türkçe ses yönetimi notu",
+  "onScreenText": ["ekran yazısı 1", "ekran yazısı 2", "ekran yazısı 3"],
+  "caption": "Türkçe sosyal medya açıklaması, 2-3 cümle",
+  "hashtags": ["#..."],
+  "sourceNotes": ["kaynak notu (s. ...)"],
+  "thumbnailText": "kapak için 3-5 kelime"
+}`;
+
+function citationLine(mode: CitationMode): string {
+  if (mode === 'yok') return 'Atıf yapma; Mârifetnâme adını anma.';
+  if (mode === 'arada') return 'En fazla 1 kısa Mârifetnâme atfı yap; sayfa numarası opsiyonel.';
+  return '2-3 güçlü atıf yap; her atıfta kaynak pasajındaki sayfa numarasını kullan.';
+}
+
+export function buildUserPrompt(
+  input: GenerateInput,
+  astro: AstroContext,
+  chunks: RetrievedChunk[],
+  settings: Settings
+): string {
+  const { sign } = input;
+  const planet = PLANETS[sign.planet];
+  const moonLine = astro.moonSigns.map((s) => s.name).join(' → ');
+  const sourceLines = chunks
+    .map((r, i) => `[M${i + 1}] s. ${r.chunk.page} — ${r.chunk.title}\n${r.chunk.text}${r.chunk.quote ? `\nKısa alıntı: "${r.chunk.quote}"` : ''}`)
+    .join('\n\n');
+
+  return `ÜRETİM GİRDİLERİ
+Seçilen burç: ${sign.name} (${sign.dates})
+Zaman dilimi: ${astro.scopeLabel} — ${astro.rangeLabel}
+Karakter: ${input.character}
+Ton: ${input.tone}
+Atıf modu: ${input.citationMode}
+Platform: ${input.platform} (dikey 9:16)
+Süre: ${input.duration} saniye
+İzleyici: 25-45 yaş, manevi hassasiyeti olan, burç içeriğini "kendini tanıma" diliyle tüketen kitle.
+Ek açı: ${input.angle.trim() || 'Yok'}
+
+GÖK TAKVİMİ BAĞLAMI (Mârifetnâme'nin tasnifine göre)
+Tarih: ${astro.dateLabel} (${astro.hijri})
+Güneş burcu: ${astro.sunSign.name}
+Ay burcu: ${moonLine}${astro.moonSigns.length > 1 ? ' (dönem içinde değişiyor)' : ''}
+Ay evresi: ${astro.moonPhase} — aydınlanma %${Math.round(astro.illumination * 100)}
+Günün gezegeni: ${astro.planetaryDay}
+Gezegen saati: ${astro.planetaryHour}
+Mevsim: ${astro.season}
+Ay'ın o burçtaki iş takvimi: ${astro.primaryMoonSign.moonElection}
+
+BURÇ DOSYASI
+Unsur: ${sign.element} — ${sign.elementNature}
+Modalite: ${sign.modality}
+Mevsim: ${sign.season}
+Yönetici gezegen: ${planet.name} (${planet.nature}; ${planet.humor})
+Burcun anahtar kelimesi: ${sign.keyword}
+Motto: "${sign.motto}"
+Hediye/kuvvet: ${sign.gift}
+Gölge: ${sign.shadow}
+Arzu: ${sign.desire}
+Yara: ${sign.wound}
+Ses/konuşma tarzı: ${sign.voice}
+Beden/jest: ${sign.body}
+İslami çerçeve cümlesi: ${sign.islamic}
+Şehir/mizaç rengi: ${sign.cities.join(', ')}
+
+KAYNAK PASAJLAR (RAG — yalnızca bunlara dayan)
+${sourceLines}
+
+GÖREV
+1) ${sign.name} karakterinin ağzından, ${input.character} bir oyuncunun kameraya konuştuğu ${astro.scopeLabel.toLocaleLowerCase('tr-TR')} videosunun senaryosunu yaz.
+2) Senaryoyu ${input.tone} tonda, ${sign.voice} sesiyle kur. ${input.angle.trim() ? `Ek açıyı ("${input.angle.trim()}") mutlaka kullan.` : ''}
+3) ${citationLine(input.citationMode)}
+4) Higgsfield için İngilizce, 120-180 kelimelik, tek planlı video promptunu yaz. Karakter: ${input.character}, yaş 28-38, Türk/Orta Doğu yüz hatları, doğal ten, abartısız makyaj. Ortam: Osmanlı-İslam astronomi çalışma odası; eski burç haritaları, pirinç usturlap, İznik çini detayı, kemerli pencere. Kamera ve ışığı tona göre ayarla.
+5) JSON'u eksiksiz doldur. "script" dizisi hook dahil 8-12 replik olsun; "closing" ayrı kalsın. "sourceNotes" yalnızca atıf modu "yok" değilse dolu olsun; her notta sayfa numarası bulunsun.
+6) Hiçbir dini metin uydurma; hiçbir kesin kehanet kurma.`;
+}
+
+function asString(v: unknown, fallback = ''): string {
+  return typeof v === 'string' ? v.trim() : fallback;
+}
+
+function asStringArray(v: unknown, fallback: string[] = []): string[] {
+  if (Array.isArray(v)) return v.filter((x): x is string => typeof x === 'string' && x.trim().length > 0).map((x) => x.trim());
+  if (typeof v === 'string' && v.trim()) return v.split('\n').map((x) => x.trim()).filter(Boolean);
+  return fallback;
+}
+
+export function parseModelJson(raw: string): Partial<GeneratedContent> {
+  let text = raw.trim();
+  text = text.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start >= 0 && end > start) text = text.slice(start, end + 1);
+  let data: Record<string, unknown>;
+  try {
+    data = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    throw new Error('Model geçerli JSON döndürmedi. Tekrar deneyin.');
+  }
+  // Bazı modeller Türkçe anahtar üretebilir; yaygın eşlemeleri tolere et.
+  const pick = (...keys: string[]) => {
+    for (const k of keys) if (data[k] !== undefined) return data[k];
+    return undefined;
+  };
+  return {
+    hook: asString(pick('hook', 'kanca', 'baslik')),
+    script: asStringArray(pick('script', 'senaryo', 'replikler')),
+    closing: asString(pick('closing', 'kapanis', 'kapanış')),
+    higgsfieldPrompt: asString(pick('higgsfieldPrompt', 'higgsfield_prompt', 'videoPrompt', 'video_prompt')),
+    bRollPrompt: asString(pick('bRollPrompt', 'b_roll_prompt', 'bRoll', 'araPlan')),
+    negativePrompt: asString(pick('negativePrompt', 'negative_prompt', 'negatifPrompt')),
+    voiceDirection: asString(pick('voiceDirection', 'voice_direction', 'sesYonetimi')),
+    onScreenText: asStringArray(pick('onScreenText', 'on_screen_text', 'ekranYazilari')),
+    caption: asString(pick('caption', 'aciklama', 'açıklama')),
+    hashtags: asStringArray(pick('hashtags', 'etiketler')),
+    sourceNotes: asStringArray(pick('sourceNotes', 'source_notes', 'kaynakNotlari')),
+    thumbnailText: asString(pick('thumbnailText', 'thumbnail_text', 'kapakYazisi'))
+  };
+}
+
+export function normalizeContent(partial: Partial<GeneratedContent>, input: GenerateInput, chunks: RetrievedChunk[]): GeneratedContent {
+  const script = partial.script?.length ? partial.script : [partial.hook || 'Bugün sana kendi gölgenden bir haber getirdim.'];
+  const fallbackSources = input.citationMode === 'yok' ? [] : chunks.slice(0, 3).map((r) => `${r.chunk.title} (s. ${r.chunk.page})`);
+  return {
+    hook: partial.hook || script[0] || `${input.sign.name}, bugün bir şeyi bırakmanın vakti.`,
+    script,
+    closing: partial.closing || 'Nefes al. Niyetini Allah’a bırak; adımını sen at.',
+    higgsfieldPrompt: partial.higgsfieldPrompt || '',
+    bRollPrompt: partial.bRollPrompt || '',
+    negativePrompt: partial.negativePrompt || 'No on-screen text, no extra fingers, no face morphing, no jump cuts, no celebrity likeness, no neon, no fantasy armor.',
+    voiceDirection: partial.voiceDirection || 'Yakın mikrofon, alçak tempolu, nefes duyulacak kadar samimi; son cümlede sesi bir ton düşür.',
+    onScreenText: partial.onScreenText?.length ? partial.onScreenText : [input.sign.name, input.sign.keyword, 'Niyet · Sabır · Adım'],
+    caption: partial.caption || `${input.sign.name} için ${input.sign.keyword.toLocaleLowerCase('tr-TR')} notu. ${input.sign.islamic}`,
+    hashtags: partial.hashtags?.length ? partial.hashtags : ['#marifetname', '#burç', '#islami', '#kişisel gelişim', '#astroloji'],
+    sourceNotes: partial.sourceNotes?.length ? partial.sourceNotes : fallbackSources,
+    thumbnailText: partial.thumbnailText || `${input.sign.name}: ${input.sign.keyword}`
+  };
+}
+
+export function corpusToPromptContext(chunks: KnowledgeChunk[]): string {
+  return chunks.map((c) => `s.${c.page} ${c.title}: ${c.text}`).join('\n');
+}

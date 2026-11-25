@@ -1,0 +1,111 @@
+# Prompt motoru tasarımı
+
+## Amaç
+
+Aynı burç için üretilen içeriklerin birbirine benzemesini engellemek; karakterin sesini, seçilen zaman aralığını ve İslami hassasiyeti tek bir tutarlı çerçevede birleştirmek.
+
+## Katmanlar
+
+### 1. Sistem promptu
+
+`src/lib/prompt.ts` içindeki `SYSTEM_PROMPT` şunları tanımlar:
+
+- Karakter Türkçe konuşur, birinci tekil şahıs kullanır, izleyiciye “sen” diye hitap eder.
+- 8-12 kısa replik; ilk 3 saniyede hook.
+- Burcun gölgesi ve arzusu somut bir insan sahnesiyle anlatılır.
+- Ay burcu, gezegen günü ve mevsim metne doğal biçimde dokunur.
+- İslami çerçeve: tevekkül, niyet, sabır, şükür, kalbi temiz tutma; her replikte değil, 1-2 yerde.
+- Kuran ayeti/hadis uydurma; dinî hüküm verme; kesin kehanet kurma.
+- Agresif ton sert olabilir; hakaret/tehdit/şiddet olamaz.
+- Higgsfield promptu İngilizce, 120-180 kelime, tek plan, 9:16.
+
+### 2. Kullanıcı promptu
+
+Şu bloklardan oluşur:
+
+1. **Üretim girdileri**: burç, zaman, karakter, ton, atıf modu, platform, süre, ek açı.
+2. **Gök takvimi bağlamı**: tarih, hicri tarih, Güneş/Ay burcu, Ay evresi, gezegen günü/saati, mevsim, Ay’ın o burçtaki iş takvimi.
+3. **Burç dosyası**: unsur, modalite, yönetici gezegen, hediye, gölge, arzu, yara, ses, jest, İslami çerçeve.
+4. **RAG pasajları**: sayfa numaralı 6 kart.
+5. **Görev**: senaryo + Higgsfield promptu + JSON.
+
+## Atıf modları
+
+| Mod | Davranış |
+|---|---|
+| `yok` | Mârifetnâme adı anılmaz; pasajlar yalnızca üslup ve içerik zemini. |
+| `arada` | En fazla 1 doğal atıf; sayfa numarası opsiyonel. |
+| `guclu` | 2-3 atıf; her atıfta kaynak pasajındaki sayfa numarası. |
+
+Model, kaynakta olmayan bir cümleyi “Mârifetnâme’de yazıyor” diye sunmamalıdır. `sourceNotes` yalnızca atıf modu açıkken doldurulur.
+
+## Ton matrisi
+
+| Ton | Ses | Jest | Işık | Kamera |
+|---|---|---|---|---|
+| Duygusal | yakın, kırılgan, nefesli | el kalpte, sonra bırakma | sıcak mum, yumuşak falloff | slow dolly-in, 50mm |
+| Agresif | keskin, kontrollü öfke | öne eğilme, tek parmak vurgusu | sert yan ışık, derin gölge | handheld push-in, 35mm |
+| Sakin | alçak tempo, eşit nefes | omuzlar rahat, avuç açık | yumuşak pencere ışığı | statik medium close-up |
+| Gizemli | fısıltıya yakın, aralıklı | hareketsiz, baş hafif eğik | düşük key, tek mum | yavaş lateral dolly |
+| Otoriter | tok, ölçülü, kararlı | eller masada, dik duruş | üst ışık + altın rim | low-angle push-in |
+
+## Higgsfield prompt yapısı
+
+```
+Vertical 9:16, N-second single continuous shot, direct-to-camera.
+Subject: yaş, cinsiyet, saç, ten, göz, kıyafet, takı.
+Action: jest, bakış, duruş, konuşma temposu.
+Setting: Osmanlı-İslam astronomi çalışma odası; haritalar, usturlap, çini, kemerli pencere.
+Camera: adlandırılmış hareket + lens + alan derinliği.
+Lighting: yön, sertlik, renk sıcaklığı.
+Style: cinematic realism, palette, film grain.
+Audio: oda tonu, ney drone, yakın mikrofon.
+Dialogue (Turkish, lip-synced): hook.
+```
+
+Negatif prompt: ekran yazısı, logo, filigran, fazla parmak, yüz bozulması, plastik cilt, hızlı kesme, neon, fantezi zırh, ünlü benzerliği, çoklu kişi, lip-sync kayması.
+
+## JSON çıktısı
+
+```json
+{
+  "hook": "ilk 3 saniye",
+  "script": ["replik 1", "replik 2"],
+  "closing": "kapanış",
+  "higgsfieldPrompt": "İngilizce ana plan",
+  "bRollPrompt": "İngilizce ara plan",
+  "negativePrompt": "İngilizce negatif",
+  "voiceDirection": "Türkçe ses notu",
+  "onScreenText": ["..."],
+  "caption": "Türkçe caption",
+  "hashtags": ["#..."],
+  "sourceNotes": ["s. 69 ..."],
+  "thumbnailText": "kapak"
+}
+```
+
+`src/lib/prompt.ts` içindeki `parseModelJson` kod bloğu, fence, Türkçe anahtar ve eksik alan toleransı sağlar. `normalizeContent` boş alanları güvenli varsayılanlarla doldurur.
+
+## Model önerileri
+
+- **Groq / `llama-3.3-70b-versatile`**: Türkçe akıcılık ve JSON disiplini dengeli.
+- **Groq / `openai/gpt-oss-120b`**: daha yaratıcı, daha yavaş.
+- **Gemini / `gemini-2.5-flash`**: hızlı, iyi Türkçe; semantik RAG için aynı anahtar kullanılabilir.
+- **Sıcaklık**: 0.8-0.9. Daha düşük değerler tekrara, daha yüksek değerler format bozulmasına yol açabilir.
+
+## İçerik güvenliği
+
+- Ölüm, hastalık, kaza, boşanma, hamilelik, zenginlik garantisi yasak.
+- “Kesin”, “mutlaka”, “garanti” yerine “eğilim”, “davet”, “fırsat”, “imtihan”.
+- Dinî hüküm/fetva yok; ayet/hadis uydurma yok.
+- Nefret, hedef gösterme, tehdit, şiddet çağrısı yok.
+- Kullanıcıya suçluluk yükleyen “kurban edebiyatı” yerine somut, uygulanabilir tek adım.
+
+## Genişletme fikirleri
+
+- Zaman dilimini kullanıcının konumuna göre hesaplama (şu an İstanbul sabit).
+- Gerçek efemeris (Swiss Ephemeris) ile Ay burcunu netleştirme.
+- Çoklu sahne / diyalog dizisi üretimi.
+- Higgsfield karakter referansı (`soul-id`) alanı.
+- Marka sesi profili ve yasaklı kelime listesi.
+- Aylık içerik takvimi üretimi (12 burç × 30 gün).

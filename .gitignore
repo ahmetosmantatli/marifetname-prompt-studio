@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.DS_Store
+*.local
+.env
+.env.*
+data/raw.txt
+data/*.pdf
+*.pdf
+coverage/
+.vite/
+
+.npm-cache/
+tools/
+*.tsbuildinfo
