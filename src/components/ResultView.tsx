@@ -188,6 +188,7 @@ export function ResultView(props: Props) {
               <span>{meta.input.character} karakter</span>
               <span>·</span>
               <span>{meta.input.tone}</span>
+              <span className={`quality-badge${meta.quality === 'kismi' ? ' warn' : ''}`}>{meta.quality === 'kismi' ? 'KISMİ ÇIKTI' : 'TAM ÇIKTI'}</span>
             </div>
           </div>
         </div>

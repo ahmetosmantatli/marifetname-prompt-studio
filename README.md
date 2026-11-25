@@ -42,7 +42,7 @@ Anahtarlar nereden alınır?
 - Groq: <https://console.groq.com/keys>
 - Gemini: <https://aistudio.google.com/app/apikey>
 
-## Model ve limit gerçekleri (26 Kasım 2026 itibarıyla test edildi)
+## Model ve limit gerçekleri (25 Kasım 2026 itibarıyla test edildi)
 
 Bu proje için tipik istek **~3.000 girdi tokenı** ve **~1.000-1.500 çıktı tokenı** üretir. Yani bağlam limiti darboğaz değil; asıl sınır Groq'un ücretsiz dakikalık token kotası.
 

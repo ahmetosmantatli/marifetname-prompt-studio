@@ -366,6 +366,8 @@ select:focus, input:focus, textarea:focus { border-color: rgba(201,164,92,.55) !
 .provider-badge.groq { color: #e8a07d; border-color: rgba(232,135,77,.35); }
 .provider-badge.gemini { color: #9cc3ef; border-color: rgba(110,168,232,.35); }
 .provider-badge.demo { color: var(--gold); }
+.quality-badge { border: 1px solid rgba(127,182,155,.35); color: #9fcdb7; padding: 2px 5px; border-radius: 2px; font-size: 7px; letter-spacing: .1em; }
+.quality-badge.warn { border-color: rgba(201,164,92,.4); color: var(--gold-2); }
 .result-actions { display: flex; align-items: center; gap: 5px; flex: 0 0 auto; }
 .icon-btn { width: 30px; height: 30px; display: grid; place-items: center; background: transparent; border: 1px solid var(--line-soft); color: var(--muted); border-radius: 2px; transition: color .2s, border-color .2s; }
 .icon-btn:hover { color: var(--gold-2); border-color: var(--line); }

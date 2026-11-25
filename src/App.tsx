@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   Character,
   CitationMode,
@@ -51,6 +51,7 @@ export default function App() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [copied, setCopied] = useState('');
   const [toast, setToast] = useState('');
+  const resultRef = useRef<HTMLElement | null>(null);
 
   const sign = useMemo(() => getSign(signId), [signId]);
 
@@ -86,6 +87,7 @@ export default function App() {
       });
       let content;
       let model: string;
+      let quality: 'tam' | 'kismi' = 'tam';
       let activeSettings = settings;
       if (settings.provider === 'demo') {
         setProgress('Yerel şablon motoru yazıyor…');
@@ -130,9 +132,13 @@ export default function App() {
             content = normalizeContent(out.content, input, chunks);
             model = out.model;
             const remaining = validateContent(content, input);
-            if (remaining.length) setToast(`Bazı alanlar sınırlı kaldı: ${remaining.join(', ')}`);
+            if (remaining.length) {
+              quality = 'kismi';
+              setToast(`Bazı alanlar sınırlı kaldı: ${remaining.join(', ')}`);
+            }
           } catch {
             // Tamamlama turu kotaya takılırsa ilk çıktıyı kaybetme.
+            if (validateContent(content, input).length) quality = 'kismi';
             setToast('Tamamlama turu tamamlanamadı; ilk çıktı gösteriliyor.');
           }
         }
@@ -147,9 +153,10 @@ export default function App() {
         tone,
         provider: settings.provider,
         content,
-        meta: { provider: settings.provider, model, createdAt: new Date().toISOString(), chunks: chunks.map((r) => r.chunk), astro, input }
+        meta: { provider: settings.provider, model, createdAt: new Date().toISOString(), chunks: chunks.map((r) => r.chunk), astro, input, quality }
       };
       setResult(item);
+      window.setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
       setHistory((prev) => {
         const next = [item, ...prev].slice(0, 30);
         saveHistory(next);
@@ -328,7 +335,7 @@ export default function App() {
             </section>
           </aside>
 
-          <section className="panel result-panel">
+          <section className="panel result-panel" ref={resultRef}>
             <ResultView
               result={result}
               loading={loading}

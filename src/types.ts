@@ -123,6 +123,7 @@ export interface GenerationMeta {
   chunks: KnowledgeChunk[];
   astro: AstroContext;
   input: GenerateInput;
+  quality?: 'tam' | 'kismi';
 }
 
 export interface HistoryItem {
